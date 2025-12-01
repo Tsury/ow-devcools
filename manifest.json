@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Overwolf DevCools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Supercharged Overwolf DevTools, straight in your Chrome browser.",
   "author": "Tsury",
   "permissions": [
@@ -17,9 +17,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:54284/*"],
-      "js": ["src/content/content.js"],
-      "css": ["src/content/styles.css"],
+      "matches": [
+        "http://localhost:54284/*"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "css": [
+        "src/content/styles.css"
+      ],
       "run_at": "document_end"
     }
   ],
@@ -39,8 +45,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/icons/*.png"],
-      "matches": ["http://localhost:54284/*"]
+      "resources": [
+        "assets/icons/*.png"
+      ],
+      "matches": [
+        "http://localhost:54284/*"
+      ]
     }
   ]
 }
