@@ -40,6 +40,8 @@ Since DevCools requires the original Overwolf Packages window to be open, we pro
 *   **Toggle Visibility:** Press `Win + Alt + H` to show/hide the window manually.
 *   **Tray Icon:** Shows the current status and allows toggling via menu.
 
+> **Note:** This script hides the entire browser window. If you have other tabs open alongside the Packages tab, they will also be hidden. You can use the hotkey to bring the window back into view, interact with it, and then hide it again.
+
 You can find the script in `extras/PackagesHider.ahk` with a compiled version in `extras/PackagesHider.exe` (use at your own risk or compile yourself).
 
 ## Notes
