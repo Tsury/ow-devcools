@@ -7,6 +7,7 @@ let packagesSocket = null;
 let packagesTargetId = null;
 let appState = [];
 let openedTargets = new Map(); // targetId -> { tabId, title, url }
+let lingeringTabs = []; // { tabId, title, url } - tabs that were opened but target died (and not auto-closed)
 let autoOpenedHistory = new Set(); // targetId
 let pendingManifestRequests = new Map(); // reqId -> resolve
 let autoOpenRules = []; // Global rules array
@@ -23,6 +24,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
             break;
         }
     }
+    // Cleanup lingering tabs
+    lingeringTabs = lingeringTabs.filter(t => t.tabId !== tabId);
 });
 
 // Listen for storage changes (e.g. from Popup/Content)
@@ -142,6 +145,8 @@ function checkAutoOpenRules(targets) {
                 focusMainTab();
             } else {
                 // Target disappeared but Auto-Close NOT active, keeping tab
+                // Move to lingeringTabs so we can close it later if the app restarts
+                lingeringTabs.push({ tabId: info.tabId, title: info.title, url: info.url });
             }
             openedTargets.delete(targetId);
             broadcastOpenedTargets();
@@ -182,6 +187,23 @@ function checkAutoOpenRules(targets) {
         if (matchingRule && matchingRule.autoOpen) {
             // Mark as handled immediately to prevent double opening
             autoOpenedHistory.add(target.id);
+
+            // Check for lingering tabs that match this rule and close them
+            // This handles the case where Auto-Close is OFF, but we want to close the OLD tab
+            // before opening the NEW one (e.g. on App Refresh).
+            const tabsToClose = [];
+            lingeringTabs = lingeringTabs.filter(tabInfo => {
+                const titleMatch = matchingRule.titlePattern ? tabInfo.title === matchingRule.titlePattern : true;
+                const urlMatch = matchingRule.urlPattern ? tabInfo.url === matchingRule.urlPattern : true;
+                
+                if (titleMatch && urlMatch) {
+                    tabsToClose.push(tabInfo.tabId);
+                    return false; // Remove from lingeringTabs
+                }
+                return true; // Keep in lingeringTabs
+            });
+
+            tabsToClose.forEach(tid => chrome.tabs.remove(tid, () => { if(chrome.runtime.lastError){} }));
 
             let fullUrl = target.devtoolsFrontendUrl;
             if (fullUrl && !fullUrl.startsWith('http')) {
