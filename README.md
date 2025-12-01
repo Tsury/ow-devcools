@@ -2,11 +2,22 @@
 
 <p align="center">
   <img src="assets/screenshots/screenshot.png" alt="Overwolf DevCools Screenshot">
+  <br>
+  <strong>Supercharged Overwolf DevTools, straight in your Chrome browser.</strong>
 </p>
 
-**Supercharged Overwolf DevTools, straight in your Chrome browser.**
-
 DevCools replaces the standard Overwolf Packages window with a modern, feature-rich dashboard running directly in Chrome. It connects to your local Overwolf developer environment to give you better control and visibility over your apps.
+
+## Installation
+
+### Chrome Web Store
+*   **Status:** Awaiting approval.
+
+### Manual Installation
+1.  Download the latest `.crx` file from the [Releases](https://github.com/Tsury/ow-devcools/releases) page.
+2.  Open Chrome and navigate to `chrome://extensions`.
+3.  Enable **Developer mode** (toggle in the top right corner).
+4.  Drag and drop the downloaded `.crx` file onto the extensions page.
 
 ## Features
 
@@ -36,7 +47,7 @@ You can find the script in `extras/PackagesHider.ahk` with a compiled version in
 *   **Requirement:** The Overwolf Packages window must be kept open for this extension to work.
 *   **Work in Progress:** Not all features from the original Packages window have been ported yet. If you need something specific, please open a request!
 *   **Privacy:** Everything runs locally on your machine. No data is transmitted outside.
-*   **Disclaimer:** This project is not affiliated with Overwolf.
+*   **Disclaimer:** This project is an independent, non-profit community tool and is **not** affiliated with, endorsed by, or connected to Overwolf in any way. It does not use any Overwolf branding assets or trademarks. It is a purely local utility designed to enhance the developer experience with zero malicious intent.
 
 ## Development
 
