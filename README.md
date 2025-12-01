@@ -14,10 +14,10 @@ DevCools replaces the standard Overwolf Packages window with a modern, feature-r
 *   **Status:** Awaiting approval.
 
 ### Manual Installation
-1.  Download the latest `.crx` file from the [Releases](https://github.com/Tsury/ow-devcools/releases) page.
+1.  Download the latest `.zip` file (not the `.crx`) from the [Releases](https://github.com/Tsury/ow-devcools/releases) page.
 2.  Open Chrome and navigate to `chrome://extensions`.
 3.  Enable **Developer mode** (toggle in the top right corner).
-4.  Drag and drop the downloaded `.crx` file onto the extensions page.
+4.  Drag and drop the downloaded `.zip` file onto the extensions page.
 
 ## Features
 
