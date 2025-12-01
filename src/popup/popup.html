@@ -55,6 +55,16 @@
 
         <div class="status" id="status"></div>
 
+        <div class="section-divider"></div>
+
+        <div class="extras-section">
+            <h3>Extras</h3>
+            <button id="downloadScriptBtn" class="secondary-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download Packages Hider
+            </button>
+        </div>
+
         <div class="disclaimer">
             This extension operates entirely locally. No data is sent to external servers. All communication happens directly between your browser and the Overwolf client on your machine.
             <br><br>
@@ -64,5 +74,35 @@
         </div>
     </div>
     <script src="popup.js"></script>
+
+    <!-- Modal -->
+    <div id="scriptModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Packages Hider Script</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Since DevCools requires the original Overwolf Packages window to be open, we provide an optional AutoHotkey script to hide it from your taskbar and screen, keeping your workspace clean and preventing it from being injected into your games.</p>
+                
+                <h4>Features:</h4>
+                <ul>
+                    <li><strong>Hides the "Packages" window</strong> automatically.</li>
+                    <li><strong>Toggle Visibility:</strong> Press <code>Win + Alt + H</code> to show/hide the window manually.</li>
+                    <li><strong>Tray Icon:</strong> Shows the current status and allows toggling via menu.</li>
+                </ul>
+
+                <div class="warning-box">
+                    <strong>Disclaimer:</strong> Executing scripts is at your own responsibility.
+                    <br>
+                    You can review the source code <a href="https://github.com/Tsury/ow-devcools/blob/main/extras/PackagesHider.ahk" target="_blank">here</a>.
+                </div>
+
+                <div class="modal-actions">
+                    <a href="https://github.com/Tsury/ow-devcools/blob/main/extras/PackagesHider.exe?raw=true" class="download-btn-primary" target="_blank">Download .exe</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

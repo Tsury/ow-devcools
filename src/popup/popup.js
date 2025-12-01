@@ -7,9 +7,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const hiddenList = document.getElementById('hidden-list');
     const hiddenAppsList = document.getElementById('hidden-apps-list');
     const themeToggleBtn = document.getElementById('themeToggleBtn');
+    
+    // Modal Elements
+    const downloadScriptBtn = document.getElementById('downloadScriptBtn');
+    const scriptModal = document.getElementById('scriptModal');
+    const closeModalSpan = document.querySelector('.close-modal');
+
     let hiddenRules = [];
     let hiddenAppRules = [];
     let currentTheme = 'dark';
+
+    // Modal Logic
+    downloadScriptBtn.addEventListener('click', () => {
+        scriptModal.style.display = "block";
+    });
+
+    closeModalSpan.addEventListener('click', () => {
+        scriptModal.style.display = "none";
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target == scriptModal) {
+            scriptModal.style.display = "none";
+        }
+    });
 
     // Theme Logic
     function initTheme() {
