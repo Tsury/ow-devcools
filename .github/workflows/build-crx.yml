@@ -1,0 +1,73 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump version in manifest.json
+        id: bump_version
+        run: |
+          # Read current version
+          current_version=$(jq -r '.version' manifest.json)
+          echo "Current version: $current_version"
+          
+          # Split version into array
+          IFS='.' read -r -a parts <<< "$current_version"
+          major="${parts[0]}"
+          minor="${parts[1]}"
+          patch="${parts[2]}"
+          
+          # Increment patch
+          new_patch=$((patch + 1))
+          new_version="$major.$minor.$new_patch"
+          echo "New version: $new_version"
+          
+          # Update manifest.json with 2-space indentation
+          jq --indent 2 --arg v "$new_version" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          
+          # Set output for next steps
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+      - name: Commit and Push Version Bump
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          git commit -m "Bump version to ${{ steps.bump_version.outputs.new_version }} [skip ci]"
+          git push
+
+      - name: Create ZIP archive
+        run: |
+          zip -r extension.zip . -x "*.git*" ".github/*" "extras/*" "*.zip" "*.crx"
+
+      - name: Build CRX
+        uses: cardinalby/webext-buildtools-chrome-crx-action@v2
+        with:
+          zipFilePath: 'extension.zip'
+          crxFilePath: 'extension.crx'
+          privateKey: ${{ secrets.CRX_PRIVATE_KEY }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump_version.outputs.new_version }}
+          name: Release v${{ steps.bump_version.outputs.new_version }}
+          files: |
+            extension.crx
+            extension.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
