@@ -1,5 +1,9 @@
 # Overwolf DevCools
 
+<p align="center">
+  <img src="assets/screenshots/screenshot.png" alt="Overwolf DevCools Screenshot">
+</p>
+
 **Supercharged Overwolf DevTools, straight in your Chrome browser.**
 
 DevCools replaces the standard Overwolf Packages window with a modern, feature-rich dashboard running directly in Chrome. It connects to your local Overwolf developer environment to give you better control and visibility over your apps.
