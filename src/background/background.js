@@ -53,6 +53,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 // Load rules and settings on startup
 let pollingIntervalId = null;
 let pollingRate = 2000;
+let focusLockUntil = 0;
 
 // Load rules and settings on startup
 chrome.storage.local.get(['autoOpenRules', 'hiddenRules', 'hiddenAppRules', 'settings'], (result) => {
@@ -125,8 +126,12 @@ function checkAutoOpenRules(targets) {
         }
     }
 
-    // Auto-Close: Check for disappeared targets
-    // Only close if the rule is still active
+    const actions = {
+        close: [], // { tabId, targetId, info }
+        open: []   // { target, rule }
+    };
+
+    // 1. Identify Closes (Targets gone)
     for (const [targetId, info] of openedTargets.entries()) {
         if (!currentTargetIds.has(targetId)) {
             // Check if rule still exists for this target
@@ -137,23 +142,19 @@ function checkAutoOpenRules(targets) {
             });
 
             if (matchingRule && matchingRule.autoClose) {
-                chrome.tabs.remove(info.tabId, () => {
-                    if (chrome.runtime.lastError) {
-                        // Tab might have been closed by user already
-                    }
-                });
-                focusMainTab();
+                actions.close.push({ tabId: info.tabId, targetId, info });
             } else {
                 // Target disappeared but Auto-Close NOT active, keeping tab
                 // Move to lingeringTabs so we can close it later if the app restarts
                 lingeringTabs.push({ tabId: info.tabId, title: info.title, url: info.url });
+                // We still need to remove it from openedTargets, which happens in the execution phase
+                // But for the logic here, we just mark it for removal from openedTargets map
+                // Actually, let's handle the map cleanup in the execution phase
             }
-            openedTargets.delete(targetId);
-            broadcastOpenedTargets();
         }
     }
 
-    // Auto-Open
+    // 2. Identify Opens (New targets)
     targets.forEach(target => {
         // Skip if already opened
         if (openedTargets.has(target.id)) return;
@@ -161,16 +162,14 @@ function checkAutoOpenRules(targets) {
         // Skip if previously auto-opened in this session (user might have closed it)
         if (autoOpenedHistory.has(target.id)) return;
 
-        // 1. Check if hidden by specific rule
-        // Use raw title for matching to ensure consistency with how rules are created
+        // Check if hidden by specific rule
         const isHiddenByRule = hiddenRules.some(rule => 
             (rule.titlePattern ? target.title === rule.titlePattern : true) && 
             (rule.urlPattern ? target.url === rule.urlPattern : true)
         );
         if (isHiddenByRule) return;
 
-        // 2. Check if hidden by App ID (extract from URL)
-        // URL format: overwolf-extension://<APP_ID>/...
+        // Check if hidden by App ID
         const appMatch = target.url.match(/overwolf-extension:\/\/([^\/]+)\//);
         if (appMatch && appMatch[1]) {
             const appId = appMatch[1];
@@ -185,16 +184,58 @@ function checkAutoOpenRules(targets) {
         });
 
         if (matchingRule && matchingRule.autoOpen) {
-            // Mark as handled immediately to prevent double opening
-            autoOpenedHistory.add(target.id);
+            actions.open.push({ target, rule: matchingRule });
+        }
+    });
 
+    // 3. Set Focus Lock if needed
+    // If we are going to open a tab with autoFocus, we lock the main tab focus
+    // to prevent the "Close" actions (or onRemoved events) from stealing focus back.
+    const willAutoFocus = actions.open.some(a => a.rule.autoFocus);
+    if (willAutoFocus) {
+        focusLockUntil = Date.now() + 3000; // 3 seconds lock
+    }
+
+    // 4. Execute Closes
+    // We process these first.
+    actions.close.forEach(a => {
+        chrome.tabs.remove(a.tabId, () => {
+            if (chrome.runtime.lastError) { /* Tab might be already closed */ }
+        });
+        openedTargets.delete(a.targetId);
+        // Explicit focusMainTab is now guarded by focusLockUntil inside the function
+        focusMainTab();
+    });
+
+    // Also cleanup openedTargets for those that moved to lingeringTabs
+    // (We iterated openedTargets above, so we need to do this carefully)
+    for (const [targetId, info] of openedTargets.entries()) {
+        if (!currentTargetIds.has(targetId)) {
+            // If it wasn't in actions.close, it means it moved to lingeringTabs
+            // We need to remove it from openedTargets
+            if (!actions.close.some(a => a.targetId === targetId)) {
+                openedTargets.delete(targetId);
+            }
+        }
+    }
+
+    if (actions.close.length > 0 || openedTargets.size !== actions.close.length) {
+        broadcastOpenedTargets();
+    }
+
+    // 5. Execute Opens
+    actions.open.forEach(a => {
+        const { target, rule } = a;
+        
+        // Mark as handled immediately to prevent double opening
+        autoOpenedHistory.add(target.id);
+
+        const doOpen = () => {
             // Check for lingering tabs that match this rule and close them
-            // This handles the case where Auto-Close is OFF, but we want to close the OLD tab
-            // before opening the NEW one (e.g. on App Refresh).
             const tabsToClose = [];
             lingeringTabs = lingeringTabs.filter(tabInfo => {
-                const titleMatch = matchingRule.titlePattern ? tabInfo.title === matchingRule.titlePattern : true;
-                const urlMatch = matchingRule.urlPattern ? tabInfo.url === matchingRule.urlPattern : true;
+                const titleMatch = rule.titlePattern ? tabInfo.title === rule.titlePattern : true;
+                const urlMatch = rule.urlPattern ? tabInfo.url === rule.urlPattern : true;
                 
                 if (titleMatch && urlMatch) {
                     tabsToClose.push(tabInfo.tabId);
@@ -210,12 +251,20 @@ function checkAutoOpenRules(targets) {
                 fullUrl = 'http://localhost:54284' + (fullUrl.startsWith('/') ? '' : '/') + fullUrl;
             }
 
-            const shouldFocus = matchingRule.autoFocus || false;
+            const shouldFocus = rule.autoFocus || false;
 
             chrome.tabs.create({ url: fullUrl, active: shouldFocus }, (tab) => {
                 openedTargets.set(target.id, { tabId: tab.id, title: target.title, url: target.url });
                 broadcastOpenedTargets();
             });
+        };
+
+        // If we closed something in this cycle, give a small breathing room before opening
+        // This helps with the "Relaunch" scenario where the old window is closing and new one opening
+        if (actions.close.length > 0) {
+            setTimeout(doOpen, 200);
+        } else {
+            doOpen();
         }
     });
 }
@@ -639,6 +688,10 @@ function openFolder(path) {
 }
 
 function focusMainTab() {
+    // If we are in a "Focus Lock" period (e.g. just opened a DevTools window),
+    // do not steal focus back to the main tab.
+    if (Date.now() < focusLockUntil) return;
+
     chrome.tabs.query({url: "http://localhost:54284/*"}, (tabs) => {
         if (tabs.length > 0) {
             const tab = tabs[0];
