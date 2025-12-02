@@ -376,9 +376,10 @@ function getAppsCountHtml() {
     
     if (total === 0) return '';
     
-    let html = `<span class="count-badge">${total}</span>`;
+    const visible = total - hidden;
+    let html = `<span class="count-badge">${visible}</span>`;
     if (hidden > 0) {
-        html += ` <span class="hidden-count-badge">(${hidden} hidden)</span>`;
+        html += ` <span class="hidden-count-badge">(+${hidden} hidden)</span>`;
     }
     return html;
 }
@@ -415,9 +416,10 @@ function getTargetsCountHtml() {
     
     if (total === 0) return '';
     
-    let html = `<span class="count-badge">${total}</span>`;
+    const visible = total - hidden;
+    let html = `<span class="count-badge">${visible}</span>`;
     if (hidden > 0) {
-        html += ` <span class="hidden-count-badge">(${hidden} hidden)</span>`;
+        html += ` <span class="hidden-count-badge">(+${hidden} hidden)</span>`;
     }
     return html;
 }
