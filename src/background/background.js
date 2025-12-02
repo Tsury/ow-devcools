@@ -529,6 +529,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         const result = {
                             icon: app ? app.icon : null,
                             appName: app ? app.name : appId,
+                            appId: appId,
                             windowName: null
                         };
 

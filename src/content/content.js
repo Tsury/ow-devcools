@@ -82,10 +82,83 @@ function initDevToolsEnhancer() {
                             new MutationObserver(enforceTitle).observe(titleEl, { childList: true, characterData: true, subtree: true });
                         }
                     }
+
+                    // 4. Inject Controls (Relaunch Button)
+                    if (response.appId) {
+                        injectDevToolsControls(response.appId);
+                    }
                 }
             });
         }
     }
+}
+
+function injectDevToolsControls(appId) {
+    const container = document.createElement('div');
+    container.id = 'ow-devcools-controls';
+    // Positioned in the top-right area of the DevTools window
+    // Using high z-index to ensure it sits on top of DevTools UI
+    container.style.cssText = `
+        position: fixed;
+        top: 2px;
+        right: 110px; /* Offset to avoid standard window controls or DevTools buttons */
+        z-index: 10000;
+        display: flex;
+        gap: 8px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    `;
+
+    const relaunchBtn = document.createElement('button');
+    relaunchBtn.title = "Relaunch App (Overwolf DevCools)";
+    relaunchBtn.style.cssText = `
+        background: #292a2d;
+        border: 1px solid #5f6368;
+        color: #9aa0a6;
+        border-radius: 4px;
+        padding: 0 10px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        outline: none;
+        height: 22px;
+    `;
+    
+    // Hover effects
+    relaunchBtn.onmouseenter = () => {
+        relaunchBtn.style.background = '#35363a';
+        relaunchBtn.style.color = '#e8eaed';
+        relaunchBtn.style.borderColor = '#80868b';
+    };
+    relaunchBtn.onmouseleave = () => {
+        relaunchBtn.style.background = '#292a2d';
+        relaunchBtn.style.color = '#9aa0a6';
+        relaunchBtn.style.borderColor = '#5f6368';
+    };
+
+    relaunchBtn.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        <span>Relaunch</span>
+    `;
+
+    relaunchBtn.onclick = () => {
+        // Animation
+        const icon = relaunchBtn.querySelector('svg');
+        icon.style.transition = 'transform 0.5s ease';
+        icon.style.transform = 'rotate(-180deg)';
+        
+        chrome.runtime.sendMessage({ type: "RELAUNCH_APP", appId });
+        
+        setTimeout(() => {
+            icon.style.transform = 'none';
+        }, 500);
+    };
+
+    container.appendChild(relaunchBtn);
+    document.body.appendChild(container);
 }
 
 function initDashboard() {
