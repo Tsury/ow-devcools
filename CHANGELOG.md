@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.11] - 2025-12-02
+* Fix: Correct changelog generation logic in CI (e7fa8c9)
+
 ## [1.0.10] - 2025-12-02
 * Fix: Improve reliability of Auto Open + Focus logic (163430d)
 
