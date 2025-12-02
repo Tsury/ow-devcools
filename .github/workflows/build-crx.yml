@@ -67,23 +67,25 @@ jobs:
           cat changes.tmp > release_notes.md
           
           # Update CHANGELOG.md
-          header="## [$version] - $date"
+          # Prepare new entry
+          echo "## [$version] - $date" > new_entry.md
+          cat changes.tmp >> new_entry.md
+          echo "" >> new_entry.md
           
+          # Prepare existing content (stripping header)
           if [ -f CHANGELOG.md ]; then
-            echo "$header" > new_changelog.md
-            cat changes.tmp >> new_changelog.md
-            echo "" >> new_changelog.md
-            echo "" >> new_changelog.md
-            cat CHANGELOG.md >> new_changelog.md
-            mv new_changelog.md CHANGELOG.md
+            grep -v "^# Changelog" CHANGELOG.md > old_content.md
           else
-            echo "# Changelog" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "$header" >> CHANGELOG.md
-            cat changes.tmp >> CHANGELOG.md
+            touch old_content.md
           fi
           
-          rm changes.tmp
+          # Combine
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          cat new_entry.md >> CHANGELOG.md
+          cat old_content.md >> CHANGELOG.md
+          
+          rm new_entry.md old_content.md changes.tmp
 
       - name: Commit and Push Changes
         run: |
