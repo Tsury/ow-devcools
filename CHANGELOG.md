@@ -1,3 +1,6 @@
+## [1.0.10] - 2025-12-02
+* Fix: Improve reliability of Auto Open + Focus logic (163430d)
+
 # Changelog
 
 ## [1.0.9] - 2025-12-02
