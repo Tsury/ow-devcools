@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Bump version in manifest.json
         id: bump_version
@@ -42,17 +43,59 @@ jobs:
           # Set output for next steps
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
-      - name: Commit and Push Version Bump
+      - name: Update Changelog
+        id: changelog
+        run: |
+          version="${{ steps.bump_version.outputs.new_version }}"
+          date=$(date +%Y-%m-%d)
+          
+          # Get last tag
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          echo "Last tag: $last_tag"
+          
+          # Generate changelog content
+          if [ -z "$last_tag" ]; then
+            echo "No previous tag found. Generating log from start."
+            git log --pretty=format:"* %s (%h)" > changes.tmp
+          else
+            echo "Generating log since $last_tag"
+            git log ${last_tag}..HEAD --pretty=format:"* %s (%h)" > changes.tmp
+          fi
+          
+          # Create a release notes file for the GitHub Release body
+          cat changes.tmp > release_notes.md
+          
+          # Update CHANGELOG.md
+          header="## [$version] - $date"
+          
+          if [ -f CHANGELOG.md ]; then
+            echo "$header" > new_changelog.md
+            cat changes.tmp >> new_changelog.md
+            echo "" >> new_changelog.md
+            echo "" >> new_changelog.md
+            cat CHANGELOG.md >> new_changelog.md
+            mv new_changelog.md CHANGELOG.md
+          else
+            echo "# Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "$header" >> CHANGELOG.md
+            cat changes.tmp >> CHANGELOG.md
+          fi
+          
+          rm changes.tmp
+
+      - name: Commit and Push Changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add manifest.json
+          git add manifest.json CHANGELOG.md
           git commit -m "Bump version to ${{ steps.bump_version.outputs.new_version }} [skip ci]"
           git push
 
       - name: Create ZIP archive
         run: |
-          zip -r extension.zip . -x "*.git*" ".github/*" "extras/*" "*.zip" "*.crx"
+          zip -r extension.zip . -x "*.git*" ".github/*" "extras/*" "*.zip" "*.crx" "release_notes.md"
 
       - name: Build CRX
         uses: cardinalby/webext-buildtools-chrome-crx-action@v2
@@ -66,6 +109,8 @@ jobs:
         with:
           tag_name: v${{ steps.bump_version.outputs.new_version }}
           name: Release v${{ steps.bump_version.outputs.new_version }}
+          body_path: release_notes.md
+          target_commitish: main
           files: |
             extension.crx
             extension.zip
