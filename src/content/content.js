@@ -101,7 +101,7 @@ function injectDevToolsControls(appId) {
     container.style.cssText = `
         position: fixed;
         top: 2px;
-        right: 110px; /* Offset to avoid standard window controls or DevTools buttons */
+        right: 180px; /* Offset to avoid standard window controls or DevTools buttons */
         z-index: 10000;
         display: flex;
         gap: 8px;
