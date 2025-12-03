@@ -116,6 +116,20 @@ async function findAndConnectToPackages() {
     }
 }
 
+function createDevToolsTab(url, active, callback) {
+    // Find the main dashboard tab to get its window ID
+    chrome.tabs.query({url: "http://localhost:54284/*"}, (tabs) => {
+        let createProperties = { url: url, active: active };
+        
+        if (tabs.length > 0) {
+            // Open in the same window as the dashboard
+            createProperties.windowId = tabs[0].windowId;
+        }
+
+        chrome.tabs.create(createProperties, callback);
+    });
+}
+
 function checkAutoOpenRules(targets) {
     const currentTargetIds = new Set(targets.map(t => t.id));
 
@@ -253,7 +267,7 @@ function checkAutoOpenRules(targets) {
 
             const shouldFocus = rule.autoFocus || false;
 
-            chrome.tabs.create({ url: fullUrl, active: shouldFocus }, (tab) => {
+            createDevToolsTab(fullUrl, shouldFocus, (tab) => {
                 openedTargets.set(target.id, { tabId: tab.id, title: target.title, url: target.url });
                 broadcastOpenedTargets();
             });
@@ -413,7 +427,7 @@ function openDevToolsTab(targetId, title, url, devtoolsFrontendUrl) {
             broadcastOpenedTargets();
         } else {
             // Tab doesn't exist, create it
-            chrome.tabs.create({ url: fullUrl, active: true }, (tab) => {
+            createDevToolsTab(fullUrl, true, (tab) => {
                 openedTargets.set(targetId, { tabId: tab.id, title, url });
                 broadcastOpenedTargets();
             });
