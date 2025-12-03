@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.12] - 2025-12-03
+* Style: Adjust position of DevTools controls [no-changelog] (9fc1127)
+
 ## [1.0.11] - 2025-12-02
 * Fix: Correct changelog generation logic in CI (e7fa8c9)
 
