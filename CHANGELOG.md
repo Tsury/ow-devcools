@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.14] - 2025-12-07
+* Merge remote changes and resolve conflict in CHANGELOG.md (f533c41)
+* Fix URL normalization for Overwolf extension URLs and remove debug logs (cc3309d)
+
 ## [Unreleased]
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
 
