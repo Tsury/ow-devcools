@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.16] - 2025-12-07
+* Merge remote changes and resolve conflict in CHANGELOG.md (ee2a836)
+* Add package management buttons (Install OPK, Load Unpacked, Pack) to dashboard (a170e02)
+* Add package management buttons (Install OPK, Load Unpacked, Pack) to dashboard (4dcce1f)
+
 ## [Unreleased]
 * Feat: Add package management buttons (Install OPK, Load Unpacked, Pack) to dashboard
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
