@@ -5,6 +5,7 @@
 * Fix URL normalization for Overwolf extension URLs and remove debug logs (cc3309d)
 
 ## [Unreleased]
+* Feat: Add package management buttons (Install OPK, Load Unpacked, Pack) to dashboard
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
 * Fix: Improve rule matching to support legacy rules and fix Auto Open + Focus reliability
 

@@ -545,6 +545,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "CONTROL_APP") {
         controlApp(request.appId, request.action, request.extra);
     }
+    if (request.type === "INSTALL_OPK") {
+        clickPackageButton('.file-upload.opk button');
+    }
+    if (request.type === "LOAD_UNPACKED") {
+        clickPackageButton('.file-upload.load button');
+    }
+    if (request.type === "PACK_EXTENSION") {
+        clickPackageButton('.file-upload.pack button');
+    }
+    if (request.type === "UPDATE_PACKAGES") {
+        clickPackageButton('button[data-tooltip="Update packages now"]');
+    }
     if (request.type === "REFRESH_APP") {
         const app = appState.find(a => a.id === request.appId);
         if (app) {
@@ -699,6 +711,21 @@ function fetchManifestViaCDP(appId) {
             }
         }, 5000);
     });
+}
+
+function clickPackageButton(selector) {
+    if (!packagesSocket || packagesSocket.readyState !== WebSocket.OPEN) return;
+    
+    const script = CdpScripts.getClickScript(selector);
+    
+    packagesSocket.send(JSON.stringify({
+        id: Math.floor(Math.random() * 100000),
+        method: "Runtime.evaluate",
+        params: {
+            expression: script,
+            returnByValue: true
+        }
+    }));
 }
 
 function controlApp(appId, actionName, extraData) {

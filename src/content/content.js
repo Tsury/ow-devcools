@@ -339,6 +339,25 @@ function renderDashboard() {
                 </div>
             </header>
             
+            <div class="packages-actions-bar">
+                <button id="install-opk-btn" class="btn-action-large">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>Install OPK</span>
+                </button>
+                <button id="load-unpacked-btn" class="btn-action-large">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span>Load Unpacked</span>
+                </button>
+                <button id="pack-btn" class="btn-action-large">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    <span>Pack Extension</span>
+                </button>
+                <div class="separator-vertical"></div>
+                <button id="update-packages-btn" class="btn-action-large btn-icon-only" title="Update packages now">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
+                </button>
+            </div>
+
             <div class="main-content">
                 <section class="apps-section">
                     <h2>Apps ${getAppsCountHtml()}</h2>
@@ -895,6 +914,32 @@ function renderTargetsList(targets) {
 }
 
 function attachListeners() {
+    // Package Control Buttons
+    const installOpkBtn = document.getElementById('install-opk-btn');
+    if (installOpkBtn) {
+        installOpkBtn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: "INSTALL_OPK" });
+        });
+    }
+    const loadUnpackedBtn = document.getElementById('load-unpacked-btn');
+    if (loadUnpackedBtn) {
+        loadUnpackedBtn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: "LOAD_UNPACKED" });
+        });
+    }
+    const packBtn = document.getElementById('pack-btn');
+    if (packBtn) {
+        packBtn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: "PACK_EXTENSION" });
+        });
+    }
+    const updatePackagesBtn = document.getElementById('update-packages-btn');
+    if (updatePackagesBtn) {
+        updatePackagesBtn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: "UPDATE_PACKAGES" });
+        });
+    }
+
     // GitHub Button
     const githubBtn = document.getElementById('github-btn');
     if (githubBtn) {

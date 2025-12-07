@@ -6,6 +6,17 @@ const CdpScripts = {
         })()
     `,
 
+    getClickScript: (selector) => `
+        (function() {
+            const btn = document.querySelector('${selector}');
+            if (btn) {
+                btn.click();
+                return { success: true };
+            }
+            return { error: "Button not found: ${selector}" };
+        })()
+    `,
+
     getScraperScript: () => `
         (function() {
             function getBase64FromImg(img) {

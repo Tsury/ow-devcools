@@ -848,3 +848,74 @@ body.ctrl-pressed .btn-icon-small[data-flag="autoOpen"]:hover {
     font-weight: 700;
     letter-spacing: 0.5px;
 }
+
+/* Package Control Buttons (New Bar) */
+.packages-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.btn-action-large {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    background-color: var(--btn-secondary-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-action-large:hover {
+    background-color: var(--btn-secondary-hover);
+    border-color: var(--text-secondary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-action-large svg {
+    width: 20px;
+    height: 20px;
+}
+
+.btn-action-large.btn-icon-only {
+    padding: 12px;
+}
+
+.separator-vertical {
+    width: 1px;
+    height: 30px;
+    background-color: var(--border-color);
+    margin: 0 5px;
+}
+
+.btn-icon {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+}
+
