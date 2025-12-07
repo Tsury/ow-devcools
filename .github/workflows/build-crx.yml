@@ -66,26 +66,52 @@ jobs:
           # Create a release notes file for the GitHub Release body
           cat changes.tmp > release_notes.md
           
-          # Update CHANGELOG.md
-          # Prepare new entry
-          echo "## [$version] - $date" > new_entry.md
-          cat changes.tmp >> new_entry.md
-          echo "" >> new_entry.md
+          # Use Python to update CHANGELOG.md intelligently
+          python3 -c "
+          import sys
+          import re
+          import os
+
+          version = '$version'
+          date = '$date'
           
-          # Prepare existing content (stripping header)
-          if [ -f CHANGELOG.md ]; then
-            grep -v "^# Changelog" CHANGELOG.md > old_content.md
-          else
-            touch old_content.md
-          fi
+          with open('changes.tmp', 'r') as f:
+              changes = f.read().strip()
+              
+          new_entry = f'## [{version}] - {date}\n{changes}\n\n'
           
-          # Combine
-          echo "# Changelog" > CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          cat new_entry.md >> CHANGELOG.md
-          cat old_content.md >> CHANGELOG.md
+          if os.path.exists('CHANGELOG.md'):
+              with open('CHANGELOG.md', 'r') as f:
+                  content = f.read()
+          else:
+              content = '# Changelog\n\n'
+
+          # Regex to find [Unreleased] section
+          # Matches ## [Unreleased] followed by anything until the next ## [ or EOF
+          unreleased_pattern = r'(## \[Unreleased\].*?)(?=\n## \[|$)'
           
-          rm new_entry.md old_content.md changes.tmp
+          match = re.search(unreleased_pattern, content, re.DOTALL)
+          
+          if match:
+              # Insert after the [Unreleased] section
+              end_of_unreleased = match.end()
+              new_content = content[:end_of_unreleased] + '\n' + new_entry + content[end_of_unreleased:]
+          else:
+              # Insert after # Changelog header
+              header_pattern = r'(# Changelog\s*)'
+              header_match = re.match(header_pattern, content)
+              if header_match:
+                  end_of_header = header_match.end()
+                  new_content = content[:end_of_header] + '\n' + new_entry + content[end_of_header:]
+              else:
+                  # Fallback
+                  new_content = '# Changelog\n\n' + new_entry + content
+
+          with open('CHANGELOG.md', 'w') as f:
+              f.write(new_content)
+          "
+          
+          rm changes.tmp
 
       - name: Commit and Push Changes
         run: |
