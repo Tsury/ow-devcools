@@ -130,6 +130,17 @@ function createDevToolsTab(url, active, callback) {
     });
 }
 
+function getRuleUrl(url) {
+    try {
+        const urlObj = new URL(url);
+        urlObj.search = '';
+        urlObj.hash = '';
+        return urlObj.href;
+    } catch (e) {
+        return url.split('?')[0].split('#')[0];
+    }
+}
+
 function checkAutoOpenRules(targets) {
     const currentTargetIds = new Set(targets.map(t => t.id));
 
@@ -148,10 +159,11 @@ function checkAutoOpenRules(targets) {
     // 1. Identify Closes (Targets gone)
     for (const [targetId, info] of openedTargets.entries()) {
         if (!currentTargetIds.has(targetId)) {
+            const infoUrl = getRuleUrl(info.url);
             // Check if rule still exists for this target
             const matchingRule = autoOpenRules.find(rule => {
                 const titleMatch = rule.titlePattern ? info.title === rule.titlePattern : true;
-                const urlMatch = rule.urlPattern ? info.url === rule.urlPattern : true;
+                const urlMatch = rule.urlPattern ? infoUrl === rule.urlPattern : true;
                 return titleMatch && urlMatch;
             });
 
@@ -176,10 +188,12 @@ function checkAutoOpenRules(targets) {
         // Skip if previously auto-opened in this session (user might have closed it)
         if (autoOpenedHistory.has(target.id)) return;
 
+        const targetUrl = getRuleUrl(target.url);
+
         // Check if hidden by specific rule
         const isHiddenByRule = hiddenRules.some(rule => 
             (rule.titlePattern ? target.title === rule.titlePattern : true) && 
-            (rule.urlPattern ? target.url === rule.urlPattern : true)
+            (rule.urlPattern ? (targetUrl === rule.urlPattern || target.url === rule.urlPattern) : true)
         );
         if (isHiddenByRule) return;
 
@@ -193,7 +207,7 @@ function checkAutoOpenRules(targets) {
         // Check against rules
         const matchingRule = autoOpenRules.find(rule => {
             const titleMatch = rule.titlePattern ? target.title === rule.titlePattern : true;
-            const urlMatch = rule.urlPattern ? target.url === rule.urlPattern : true;
+            const urlMatch = rule.urlPattern ? (targetUrl === rule.urlPattern || target.url === rule.urlPattern) : true;
             return titleMatch && urlMatch;
         });
 

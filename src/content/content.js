@@ -681,15 +681,27 @@ function decodeHtml(html) {
     return txt.value;
 }
 
+function getRuleUrl(url) {
+    try {
+        const urlObj = new URL(url);
+        urlObj.search = '';
+        urlObj.hash = '';
+        return urlObj.href;
+    } catch (e) {
+        return url.split('?')[0].split('#')[0];
+    }
+}
+
 function renderTargetsList(targets) {
     if (!isConnected) return '<div class="empty-state">Waiting for Packages window...<br><span style="font-size:12px; opacity:0.7; display:block; margin-top:5px">Please open the Overwolf Packages window to continue.</span></div>';
     if (!targets || targets.length === 0) return '<div class="empty-state">No active windows found.</div>';
     
     const visibleTargets = targets.filter(t => {
         // 1. Check specific window hidden rules
+        const ruleUrl = getRuleUrl(t.url);
         const isHiddenByRule = hiddenRules.some(rule => 
             (rule.titlePattern ? t.title === rule.titlePattern : true) && 
-            (rule.urlPattern ? t.url === rule.urlPattern : true)
+            (rule.urlPattern ? (ruleUrl === rule.urlPattern || t.url === rule.urlPattern) : true)
         );
         if (isHiddenByRule) return false;
 
@@ -748,8 +760,9 @@ function renderTargetsList(targets) {
     return visibleTargets.map(t => {
         // Normalize title for matching (decode HTML entities like &amp;)
         const normalizedTitle = decodeHtml(t.title);
+        const ruleUrl = getRuleUrl(t.url);
         // Use raw title for rule lookup to match how rules are created and stored
-        const rule = autoOpenRules.find(r => r.titlePattern === t.title && r.urlPattern === t.url) || { autoOpen: false, autoClose: false, autoFocus: false };
+        const rule = autoOpenRules.find(r => r.titlePattern === t.title && r.urlPattern === ruleUrl) || { autoOpen: false, autoClose: false, autoFocus: false };
         const isOpened = openedTargetIds.includes(t.id);
         
         // Use metadata if available
@@ -833,7 +846,7 @@ function renderTargetsList(targets) {
                 <div class="target-controls-row">
                     <button class="btn-icon-small toggle-btn ${rule.autoOpen ? 'active' : ''} ${rule.autoFocus ? 'auto-focus' : ''}" 
                             data-title="${encodeURIComponent(t.title)}" 
-                            data-url="${encodeURIComponent(t.url)}"
+                            data-url="${encodeURIComponent(ruleUrl)}"
                             data-flag="autoOpen"
                             data-value="${!rule.autoOpen}"
                             data-autofocus="${rule.autoFocus}"
@@ -843,7 +856,7 @@ function renderTargetsList(targets) {
 
                     <button class="btn-icon-small toggle-btn ${rule.autoClose ? 'active' : ''}" 
                             data-title="${encodeURIComponent(t.title)}" 
-                            data-url="${encodeURIComponent(t.url)}"
+                            data-url="${encodeURIComponent(ruleUrl)}"
                             data-flag="autoClose"
                             data-value="${!rule.autoClose}"
                             title="Auto-Close: Automatically close DevTools when this window closes">
@@ -852,7 +865,7 @@ function renderTargetsList(targets) {
 
                     <button class="btn-icon-small hide-btn" 
                         data-title="${encodeURIComponent(t.title)}" 
-                        data-url="${encodeURIComponent(t.url)}"
+                        data-url="${encodeURIComponent(ruleUrl)}"
                         data-nicename="${meta ? meta.niceName : ''}"
                         title="Hide this window (Manage in Extension Settings)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>Hide this window (Manage in Extension Settings)</title><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
