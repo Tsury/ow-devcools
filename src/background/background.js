@@ -126,7 +126,12 @@ function createDevToolsTab(url, active, callback) {
             createProperties.windowId = tabs[0].windowId;
         }
 
-        chrome.tabs.create(createProperties, callback);
+        chrome.tabs.create(createProperties, (tab) => {
+            if (active) {
+                chrome.windows.update(tab.windowId, { focused: true });
+            }
+            if (callback) callback(tab);
+        });
     });
 }
 
@@ -139,6 +144,28 @@ function getRuleUrl(url) {
     } catch (e) {
         return url.split('?')[0].split('#')[0];
     }
+}
+
+function isRuleMatch(rule, title, url) {
+    let titleMatch = true;
+    if (rule.titlePattern) {
+        if (title === rule.titlePattern) {
+            titleMatch = true;
+        } else {
+            const isTitleUrl = title.includes('://');
+            const isRuleTitleUrl = rule.titlePattern.includes('://');
+            if (isTitleUrl && isRuleTitleUrl) {
+                titleMatch = getRuleUrl(title) === getRuleUrl(rule.titlePattern);
+            } else {
+                titleMatch = false;
+            }
+        }
+    }
+    
+    const targetUrl = getRuleUrl(url);
+    const urlMatch = rule.urlPattern ? (targetUrl === rule.urlPattern) : true;
+    
+    return titleMatch && urlMatch;
 }
 
 function checkAutoOpenRules(targets) {
@@ -161,11 +188,7 @@ function checkAutoOpenRules(targets) {
         if (!currentTargetIds.has(targetId)) {
             const infoUrl = getRuleUrl(info.url);
             // Check if rule still exists for this target
-            const matchingRule = autoOpenRules.find(rule => {
-                const titleMatch = rule.titlePattern ? info.title === rule.titlePattern : true;
-                const urlMatch = rule.urlPattern ? infoUrl === rule.urlPattern : true;
-                return titleMatch && urlMatch;
-            });
+            const matchingRule = autoOpenRules.find(rule => isRuleMatch(rule, info.title, info.url));
 
             if (matchingRule && matchingRule.autoClose) {
                 actions.close.push({ tabId: info.tabId, targetId, info });
@@ -191,10 +214,7 @@ function checkAutoOpenRules(targets) {
         const targetUrl = getRuleUrl(target.url);
 
         // Check if hidden by specific rule
-        const isHiddenByRule = hiddenRules.some(rule => 
-            (rule.titlePattern ? target.title === rule.titlePattern : true) && 
-            (rule.urlPattern ? (targetUrl === rule.urlPattern || target.url === rule.urlPattern) : true)
-        );
+        const isHiddenByRule = hiddenRules.some(rule => isRuleMatch(rule, target.title, target.url));
         if (isHiddenByRule) return;
 
         // Check if hidden by App ID
@@ -205,11 +225,7 @@ function checkAutoOpenRules(targets) {
         }
 
         // Check against rules
-        const matchingRule = autoOpenRules.find(rule => {
-            const titleMatch = rule.titlePattern ? target.title === rule.titlePattern : true;
-            const urlMatch = rule.urlPattern ? (targetUrl === rule.urlPattern || target.url === rule.urlPattern) : true;
-            return titleMatch && urlMatch;
-        });
+        const matchingRule = autoOpenRules.find(rule => isRuleMatch(rule, target.title, target.url));
 
         if (matchingRule && matchingRule.autoOpen) {
             actions.open.push({ target, rule: matchingRule });
@@ -555,7 +571,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     if (request.type === "TOGGLE_RULE_FLAG") {
         const { titlePattern, urlPattern, flag, value } = request;
-        let ruleIndex = autoOpenRules.findIndex(r => r.titlePattern === titlePattern && r.urlPattern === urlPattern);
+        let ruleIndex = autoOpenRules.findIndex(r => isRuleMatch(r, titlePattern, urlPattern));
         
         if (ruleIndex === -1) {
             // Create new rule
@@ -575,7 +591,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             autoOpenRules.forEach(r => r.autoFocus = false);
         }
 
-        let rule = autoOpenRules.find(r => r.titlePattern === titlePattern && r.urlPattern === urlPattern);
+        let rule = autoOpenRules.find(r => isRuleMatch(r, titlePattern, urlPattern));
         if (!rule) {
             rule = { titlePattern, urlPattern, autoOpen: true, autoClose: false, autoFocus: value };
             autoOpenRules.push(rule);

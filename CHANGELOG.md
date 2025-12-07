@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
+* Fix: Improve rule matching to support legacy rules and fix Auto Open + Focus reliability
 
 ## [1.0.13] - 2025-12-03
 * Fix: Ensure DevTools tabs open in the same window as the dashboard [no-changelog] (2260081)

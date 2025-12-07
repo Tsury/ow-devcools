@@ -692,17 +692,35 @@ function getRuleUrl(url) {
     }
 }
 
+function isRuleMatch(rule, title, url) {
+    let titleMatch = true;
+    if (rule.titlePattern) {
+        if (title === rule.titlePattern) {
+            titleMatch = true;
+        } else {
+            const isTitleUrl = title.includes('://');
+            const isRuleTitleUrl = rule.titlePattern.includes('://');
+            if (isTitleUrl && isRuleTitleUrl) {
+                titleMatch = getRuleUrl(title) === getRuleUrl(rule.titlePattern);
+            } else {
+                titleMatch = false;
+            }
+        }
+    }
+    
+    const targetUrl = getRuleUrl(url);
+    const urlMatch = rule.urlPattern ? (targetUrl === rule.urlPattern) : true;
+    
+    return titleMatch && urlMatch;
+}
+
 function renderTargetsList(targets) {
     if (!isConnected) return '<div class="empty-state">Waiting for Packages window...<br><span style="font-size:12px; opacity:0.7; display:block; margin-top:5px">Please open the Overwolf Packages window to continue.</span></div>';
     if (!targets || targets.length === 0) return '<div class="empty-state">No active windows found.</div>';
     
     const visibleTargets = targets.filter(t => {
         // 1. Check specific window hidden rules
-        const ruleUrl = getRuleUrl(t.url);
-        const isHiddenByRule = hiddenRules.some(rule => 
-            (rule.titlePattern ? t.title === rule.titlePattern : true) && 
-            (rule.urlPattern ? (ruleUrl === rule.urlPattern || t.url === rule.urlPattern) : true)
-        );
+        const isHiddenByRule = hiddenRules.some(rule => isRuleMatch(rule, t.title, t.url));
         if (isHiddenByRule) return false;
 
         const meta = targetMetadata.get(t.id);
@@ -762,7 +780,7 @@ function renderTargetsList(targets) {
         const normalizedTitle = decodeHtml(t.title);
         const ruleUrl = getRuleUrl(t.url);
         // Use raw title for rule lookup to match how rules are created and stored
-        const rule = autoOpenRules.find(r => r.titlePattern === t.title && r.urlPattern === ruleUrl) || { autoOpen: false, autoClose: false, autoFocus: false };
+        const rule = autoOpenRules.find(r => isRuleMatch(r, t.title, t.url)) || { autoOpen: false, autoClose: false, autoFocus: false };
         const isOpened = openedTargetIds.includes(t.id);
         
         // Use metadata if available
@@ -1069,7 +1087,7 @@ function attachListeners() {
                 // Reset all other autoFocus
                 autoOpenRules.forEach(r => r.autoFocus = false);
                 
-                let rule = autoOpenRules.find(r => r.titlePattern === title && r.urlPattern === url);
+                let rule = autoOpenRules.find(r => isRuleMatch(r, title, url));
                 if (!rule) {
                     rule = { titlePattern: title, urlPattern: url, autoOpen: true, autoClose: false, autoFocus: newValue };
                     autoOpenRules.push(rule);
@@ -1092,7 +1110,7 @@ function attachListeners() {
                 });
                 
                 // Optimistic update
-                let rule = autoOpenRules.find(r => r.titlePattern === title && r.urlPattern === url);
+                let rule = autoOpenRules.find(r => isRuleMatch(r, title, url));
                 if (!rule) {
                     rule = { titlePattern: title, urlPattern: url, autoOpen: false, autoClose: false, autoFocus: false };
                     autoOpenRules.push(rule);
