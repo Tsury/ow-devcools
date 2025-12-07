@@ -1,13 +1,13 @@
 # Changelog
 
-## [1.0.14] - 2025-12-07
-* Merge remote changes and resolve conflict in CHANGELOG.md (f533c41)
-* Fix URL normalization for Overwolf extension URLs and remove debug logs (cc3309d)
-
 ## [Unreleased]
 * Feat: Add package management buttons (Install OPK, Load Unpacked, Pack) to dashboard
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
 * Fix: Improve rule matching to support legacy rules and fix Auto Open + Focus reliability
+
+## [1.0.14] - 2025-12-07
+* Merge remote changes and resolve conflict in CHANGELOG.md (f533c41)
+* Fix URL normalization for Overwolf extension URLs and remove debug logs (cc3309d)
 
 ## [1.0.13] - 2025-12-03
 * Fix: Ensure DevTools tabs open in the same window as the dashboard [no-changelog] (2260081)
