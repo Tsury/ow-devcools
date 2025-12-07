@@ -5,6 +5,12 @@
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
 * Fix: Improve rule matching to support legacy rules and fix Auto Open + Focus reliability
 
+## [1.0.18] - 2025-12-07
+* Merge remote changes and resolve conflict in CHANGELOG.md (a73806e)
+* Update CI workflow to intelligently insert new changelog entries after [Unreleased] section [no-changelog] (e30607d)
+* Fix CHANGELOG.md structure: Move [Unreleased] to top [no-changelog] (9ffa8fc)
+
+
 ## [1.0.17] - 2025-12-07
 * Merge branch 'main' of https://github.com/Tsury/ow-devcools (7408fb1)
 * Update icons for Install OPK (File Plus) and Load Unpacked (Folder) [no-changelog] (1be06ed)
