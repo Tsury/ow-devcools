@@ -3,6 +3,9 @@
 ## [Unreleased]
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
 
+## [1.0.13] - 2025-12-03
+* Fix: Ensure DevTools tabs open in the same window as the dashboard [no-changelog] (2260081)
+
 ## [1.0.12] - 2025-12-03
 * Style: Adjust position of DevTools controls [no-changelog] (9fc1127)
 
