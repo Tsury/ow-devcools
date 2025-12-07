@@ -5,6 +5,10 @@
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
 * Fix: Improve rule matching to support legacy rules and fix Auto Open + Focus reliability
 
+## [1.0.17] - 2025-12-07
+* Merge branch 'main' of https://github.com/Tsury/ow-devcools (7408fb1)
+* Update icons for Install OPK (File Plus) and Load Unpacked (Folder) [no-changelog] (1be06ed)
+
 ## [1.0.16] - 2025-12-07
 * Merge remote changes and resolve conflict in CHANGELOG.md (ee2a836)
 * Add package management buttons (Install OPK, Load Unpacked, Pack) to dashboard (a170e02)
