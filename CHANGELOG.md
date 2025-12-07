@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.15] - 2025-12-07
+* Merge branch 'main' of https://github.com/Tsury/ow-devcools (13145fb)
+* Remove legacy rule support and enforce strict normalized URL matching (498bbe3)
+
 ## [1.0.14] - 2025-12-07
 * Merge remote changes and resolve conflict in CHANGELOG.md (f533c41)
 * Fix URL normalization for Overwolf extension URLs and remove debug logs (cc3309d)
