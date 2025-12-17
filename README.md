@@ -11,7 +11,7 @@ DevCools replaces the standard Overwolf Packages window with a modern, feature-r
 ## Installation
 
 ### Chrome Web Store
-[<img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQzWRCzO2/D2CjO5rD6z0WdE6b7z9P.png" alt="Available in the Chrome Web Store" width="200">](https://chromewebstore.google.com/detail/overwolf-devcools/dlgoceidbpkdallbhdfanahejljmijdg)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/dlgoceidbpkdallbhdfanahejljmijdg?style=for-the-badge&logo=google-chrome&logoColor=white&label=Install%20from%20Chrome%20Web%20Store&color=4285F4)](https://chromewebstore.google.com/detail/overwolf-devcools/dlgoceidbpkdallbhdfanahejljmijdg)
 
 ### Manual Installation
 1.  Download the latest `.zip` file (not the `.crx`) from the [Releases](https://github.com/Tsury/ow-devcools/releases) page.
