@@ -12,6 +12,10 @@
 * Docs: Added link to Chrome Web Store listing
 * Style: Polished UI with better spacing, larger icons, and a cleaner layout
 
+## [1.0.21] - 2025-12-17
+* docs: fix broken chrome web store badge in readme [no-changelog] (5b37475)
+
+
 ## [1.0.20] - 2025-12-17
 * fix: replace deprecated chrome upload action [publish] [no-changelog] (83d4d90)
 * chore: cleanup code, fix auto-open bug, and prepare release [publish] (6ca4cb2)
