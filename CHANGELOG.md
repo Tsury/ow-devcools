@@ -12,6 +12,11 @@
 * Docs: Added link to Chrome Web Store listing
 * Style: Polished UI with better spacing, larger icons, and a cleaner layout
 
+## [1.0.20] - 2025-12-17
+* fix: replace deprecated chrome upload action [publish] [no-changelog] (83d4d90)
+* chore: cleanup code, fix auto-open bug, and prepare release [publish] (6ca4cb2)
+
+
 ## [1.0.18] - 2025-12-07
 * Merge remote changes and resolve conflict in CHANGELOG.md (a73806e)
 * Update CI workflow to intelligently insert new changelog entries after [Unreleased] section [no-changelog] (e30607d)
