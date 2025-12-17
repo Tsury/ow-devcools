@@ -67,11 +67,23 @@ const CdpScripts = {
 
                     // 2. Enable / Disable Toggle
                     const toggleInput = item.querySelector('.ow-toggle input');
+                    let isBuiltIn = false;
+                    let isEnabled = false;
                     if (toggleInput) {
-                        const isEnabled = toggleInput.checked;
+                        isEnabled = toggleInput.checked;
+                        const isDisabled = toggleInput.disabled;
+                        
+                        // Check for custom label text (e.g. "GEP activated")
+                        const labelSpan = item.querySelector('.ow-toggle label span');
+                        const labelText = labelSpan ? labelSpan.innerText : '';
+                        
+                        if (isDisabled || labelText.includes('GEP')) {
+                            isBuiltIn = true;
+                        }
+
                         buttons.push({ 
                             text: isEnabled ? "Disable" : "Enable", 
-                            enabled: true,
+                            enabled: !isDisabled,
                             type: 'toggle'
                         });
                     }
@@ -99,10 +111,20 @@ const CdpScripts = {
                         });
                     }
 
-                    apps.push({ id, name, icon, author, version, path, buttons, appWindows });
+                    apps.push({ id, name, icon, author, version, path, buttons, appWindows, isBuiltIn, isEnabled });
                 }
             }
-            return apps;
+
+            // Scrape Settings
+            const builtInCheckbox = document.getElementById('built-in-packages');
+            const trayCheckbox = document.getElementById('dev-items-in-tray-menu');
+            
+            const settings = {
+                showBuiltInPackages: builtInCheckbox ? builtInCheckbox.checked : false,
+                showDevOptionsInTray: trayCheckbox ? trayCheckbox.checked : false
+            };
+
+            return { apps, settings };
         })()
     `,
 
@@ -192,6 +214,76 @@ const CdpScripts = {
             const a = document.createElement('a');
             a.href = 'folder://${escapedPath}';
             a.click();
+        })()
+    `,
+
+    getIdentityScript: () => `
+        (function() {
+            return new Promise((resolve) => {
+                let isResolved = false;
+                function finalResolve(val) {
+                    if (!isResolved) {
+                        isResolved = true;
+                        resolve(val);
+                    }
+                }
+
+                function processResult(res) {
+                    try {
+                        if (typeof res === 'string') {
+                            try { res = JSON.parse(res); } catch(e) {}
+                        }
+                        if (res && res.window && res.window.name) {
+                            finalResolve(res.window.name);
+                            return;
+                        }
+                    } catch(e) {
+                    }
+                }
+
+                try {
+                    if (typeof overwolf === 'undefined' || !overwolf.windows || !overwolf.windows.getCurrentWindow) {
+                        finalResolve(null);
+                        return;
+                    }
+
+                    // Robust identification strategy:
+                    // Try Promise style (0 args), if that fails or isn't a promise, try Callback style.
+                    let ret;
+                    let failedZeroArgs = false;
+
+                    try {
+                        ret = overwolf.windows.getCurrentWindow();
+                    } catch (e) {
+                        failedZeroArgs = true;
+                    }
+
+                    if (failedZeroArgs) {
+                        try {
+                            overwolf.windows.getCurrentWindow((res) => processResult(res));
+                        } catch(e) { finalResolve(null); }
+                    } else {
+                        if (ret && typeof ret.then === 'function') {
+                            ret.then(res => processResult(res))
+                               .catch(() => {
+                                   finalResolve(null);
+                               });
+                        } else {
+                            try {
+                                overwolf.windows.getCurrentWindow((res) => processResult(res));
+                            } catch(e) { finalResolve(null); }
+                        }
+                    }
+                    
+                    // Fallback timeout
+                    setTimeout(() => {
+                        finalResolve(null);
+                    }, 2000);
+
+                } catch (e) {
+                    finalResolve(null);
+                }
+            });
         })()
     `
 };

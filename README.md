@@ -11,7 +11,7 @@ DevCools replaces the standard Overwolf Packages window with a modern, feature-r
 ## Installation
 
 ### Chrome Web Store
-*   **Status:** Awaiting approval.
+[<img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQzWRCzO2/D2CjO5rD6z0WdE6b7z9P.png" alt="Available in the Chrome Web Store" width="200">](https://chromewebstore.google.com/detail/overwolf-devcools/dlgoceidbpkdallbhdfanahejljmijdg)
 
 ### Manual Installation
 1.  Download the latest `.zip` file (not the `.crx`) from the [Releases](https://github.com/Tsury/ow-devcools/releases) page.
@@ -31,6 +31,20 @@ DevCools replaces the standard Overwolf Packages window with a modern, feature-r
 *   **Unpacked Indicator:** Clearly see which apps are loaded from disk (Unpacked) vs installed from the store.
 *   **Themes:** Built-in Dark and Light modes.
 *   **Non-Intrusive:** Runs entirely in Chrome, not injected into your games.
+
+## Window Matching
+
+DevCools uses `overwolf.windows.getCurrentWindow()` to correctly identify and name your open app windows. This ensures accurate matching even if multiple windows share the same HTML file.
+
+**Important:** If your app manipulates the `overwolf` object or uses a custom wrapper that modifies the behavior of `getCurrentWindow()` outside of the standard supported forms, you may encounter issues with window identification and DevTools matching.
+
+Supported forms:
+1.  **Callback (Standard):** `getCurrentWindow(callback)` returning an object.
+2.  **Callback (String):** `getCurrentWindow(callback)` returning a JSON string.
+3.  **Promise (Object):** `getCurrentWindow()` returning a Promise that resolves to an object.
+4.  **Promise (String):** `getCurrentWindow()` returning a Promise that resolves to a JSON string.
+
+If you experience issues with window matching, please open an issue describing your setup and how you manipulate the Overwolf API so we can add support for it.
 
 ## Packages Hider (Optional)
 

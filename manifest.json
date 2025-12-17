@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Overwolf DevCools",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Supercharged Overwolf DevTools, straight in your Chrome browser.",
   "author": "Tsury",
   "permissions": [
@@ -46,7 +46,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/icons/*.png"
+        "assets/icons/*.png",
+        "CHANGELOG.md"
       ],
       "matches": [
         "http://localhost:54284/*"

@@ -1,9 +1,16 @@
 # Changelog
 
 ## [Unreleased]
+* Feat: Added Search Bar to filter apps and windows by name or URL
+* Feat: Added Settings Dropdown to toggle "Built-in Packages" and "Tray Options" visibility
+* Feat: Added "Task Manager" and "Overwolf Settings" shortcuts to the dashboard
 * Feat: Add package management buttons (Install OPK, Load Unpacked, Pack) to dashboard
+* Fix: Fixed window identification bugs and enhanced matching logic
 * Fix: Resolve issue where Auto Open rules were forgotten due to dynamic URL parameters
 * Fix: Improve rule matching to support legacy rules and fix Auto Open + Focus reliability
+* Fix: Prevent fetching manifests for disabled apps to avoid CORS errors
+* Docs: Added link to Chrome Web Store listing
+* Style: Polished UI with better spacing, larger icons, and a cleaner layout
 
 ## [1.0.18] - 2025-12-07
 * Merge remote changes and resolve conflict in CHANGELOG.md (a73806e)

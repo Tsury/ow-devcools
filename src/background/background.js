@@ -6,6 +6,7 @@ importScripts('cdp-scripts.js');
 let packagesSocket = null;
 let packagesTargetId = null;
 let appState = [];
+let packagesSettings = {};
 let openedTargets = new Map(); // targetId -> { tabId, title, url }
 let lingeringTabs = []; // { tabId, title, url } - tabs that were opened but target died (and not auto-closed)
 let autoOpenedHistory = new Set(); // targetId
@@ -13,6 +14,8 @@ let pendingManifestRequests = new Map(); // reqId -> resolve
 let autoOpenRules = []; // Global rules array
 let hiddenRules = [];
 let hiddenAppRules = [];
+let targetIdentityCache = new Map(); // targetId -> windowName
+let identifyingTargets = new Set(); // targetId
 
 // Track tab closures to update state
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -105,6 +108,9 @@ async function findAndConnectToPackages() {
 
         // 2. Handle Auto-Open Rules & Auto-Close
         checkAutoOpenRules(targets);
+
+        // 3. Identify Overwolf Windows
+        identifyOverwolfWindows(targets);
 
     } catch (err) {
         if (packagesTargetId || packagesSocket) {
@@ -295,11 +301,21 @@ function checkAutoOpenRules(targets) {
                 fullUrl = 'http://localhost:54284' + (fullUrl.startsWith('/') ? '' : '/') + fullUrl;
             }
 
-            const shouldFocus = rule.autoFocus || false;
+            // Check if a tab with this URL already exists (to prevent duplicates on reload)
+            chrome.tabs.query({ url: fullUrl }, (existingTabs) => {
+                if (existingTabs.length > 0) {
+                    const existingTab = existingTabs[0];
+                    openedTargets.set(target.id, { tabId: existingTab.id, title: target.title, url: target.url });
+                    broadcastOpenedTargets();
+                    return;
+                }
 
-            createDevToolsTab(fullUrl, shouldFocus, (tab) => {
-                openedTargets.set(target.id, { tabId: tab.id, title: target.title, url: target.url });
-                broadcastOpenedTargets();
+                const shouldFocus = rule.autoFocus || false;
+
+                createDevToolsTab(fullUrl, shouldFocus, (tab) => {
+                    openedTargets.set(target.id, { tabId: tab.id, title: target.title, url: target.url });
+                    broadcastOpenedTargets();
+                });
             });
         };
 
@@ -348,7 +364,14 @@ function connectToPackages(wsUrl) {
         // Scraping result
         if (data.id === 1001) { 
             if (data.result && data.result.result && data.result.result.value) {
-                appState = data.result.result.value;
+                const result = data.result.result.value;
+                if (result.apps) {
+                    appState = result.apps;
+                    packagesSettings = result.settings || {};
+                } else {
+                    // Fallback for old script version or direct array return
+                    appState = result;
+                }
                 broadcastState();
             }
         }
@@ -409,7 +432,10 @@ function broadcastState() {
             chrome.tabs.sendMessage(tab.id, {
                 type: "APP_STATE", 
                 data: appState,
-                connected: !!packagesSocket
+                connected: !!packagesSocket,
+                settings: packagesSettings,
+                identities: Array.from(targetIdentityCache.entries()),
+                identifying: Array.from(identifyingTargets)
             }, () => {
                 // Ignore errors if the content script is not ready
                 if (chrome.runtime.lastError) {
@@ -468,7 +494,13 @@ function openDevToolsTab(targetId, title, url, devtoolsFrontendUrl) {
 // Handle messages from Content Script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "GET_STATE") {
-        sendResponse({ data: appState, connected: !!packagesSocket });
+        sendResponse({ 
+            data: appState, 
+            connected: !!packagesSocket, 
+            settings: packagesSettings,
+            identities: Array.from(targetIdentityCache.entries()),
+            identifying: Array.from(identifyingTargets)
+        });
     }
     if (request.type === "GET_OPENED_TARGETS") {
         sendResponse(Array.from(openedTargets.keys()));
@@ -557,6 +589,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "UPDATE_PACKAGES") {
         clickPackageButton('button[data-tooltip="Update packages now"]');
     }
+    if (request.type === "OPEN_TASK_MANAGER") {
+        clickPackageButton('.task-manager');
+    }
+    if (request.type === "OPEN_OW_SETTINGS") {
+        clickPackageButton('.settings');
+    }
+    if (request.type === "TOGGLE_BUILT_IN_PACKAGES") {
+        clickPackageButton('#built-in-packages');
+        setTimeout(scrapeApps, 200);
+    }
+    if (request.type === "TOGGLE_TRAY_DEV_OPTIONS") {
+        clickPackageButton('#dev-items-in-tray-menu');
+        setTimeout(scrapeApps, 200);
+    }
     if (request.type === "REFRESH_APP") {
         const app = appState.find(a => a.id === request.appId);
         if (app) {
@@ -638,23 +684,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                             windowName: null
                         };
 
-                        // Try to get window name from manifest
-                        try {
-                            const manifestData = await fetchManifestViaCDP(appId);
-                            if (manifestData && !manifestData.error) {
-                                const windows = manifestData.windows || manifestData.data?.windows || {};
-                                const urlObj = new URL(target.url);
-                                const path = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
-                                
-                                for (const [name, def] of Object.entries(windows)) {
-                                    if (def.file === path) {
-                                        result.windowName = name;
-                                        break;
+                        // 1. Try to get window name from Identity Cache (Best)
+                        if (targetIdentityCache.has(targetId)) {
+                            result.windowName = targetIdentityCache.get(targetId);
+                        }
+
+                        // 2. Fallback: Try to get window name from manifest (Heuristic)
+                        if (!result.windowName) {
+                            try {
+                                const manifestData = await fetchManifestViaCDP(appId);
+                                if (manifestData && !manifestData.error) {
+                                    const windows = manifestData.windows || manifestData.data?.windows || {};
+                                    const urlObj = new URL(target.url);
+                                    const path = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+                                    
+                                    for (const [name, def] of Object.entries(windows)) {
+                                        if (def.file === path) {
+                                            result.windowName = name;
+                                            break;
+                                        }
                                     }
                                 }
+                            } catch (e) {
+                                console.error("Error resolving window name:", e);
                             }
-                        } catch (e) {
-                            console.error("Error resolving window name:", e);
                         }
 
                         sendResponse(result);
@@ -682,8 +735,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function fetchManifestViaCDP(appId) {
     return new Promise(resolve => {
-        if (!packagesSocket) {
-            resolve({ error: "Socket not connected" });
+        if (!packagesSocket || packagesSocket.readyState !== WebSocket.OPEN) {
+            resolve({ error: "Socket not connected or not open" });
             return;
         }
 
@@ -729,7 +782,7 @@ function clickPackageButton(selector) {
 }
 
 function controlApp(appId, actionName, extraData) {
-    if (!packagesSocket) {
+    if (!packagesSocket || packagesSocket.readyState !== WebSocket.OPEN) {
         console.error("Cannot control app: Socket not connected");
         return;
     }
@@ -744,7 +797,7 @@ function controlApp(appId, actionName, extraData) {
 }
 
 function openFolder(path) {
-    if (!packagesSocket) return;
+    if (!packagesSocket || packagesSocket.readyState !== WebSocket.OPEN) return;
     
     // Escape backslashes for the JS string context
     const escapedPath = path.replace(/\\/g, '\\\\');
@@ -771,3 +824,83 @@ function focusMainTab() {
         }
     });
 }
+
+function identifyOverwolfWindows(targets) {
+    // Cleanup cache for closed targets
+    const currentTargetIds = new Set(targets.map(t => t.id));
+    for (const id of targetIdentityCache.keys()) {
+        if (!currentTargetIds.has(id)) {
+            targetIdentityCache.delete(id);
+        }
+    }
+
+    targets.forEach(target => {
+        // Only interested in Overwolf Extension pages
+        if (target.type !== 'page' || !target.url.startsWith('overwolf-extension://')) return;
+        
+        // Skip if already identified or currently identifying
+        if (targetIdentityCache.has(target.id)) {
+            return;
+        }
+        if (identifyingTargets.has(target.id)) {
+            return;
+        }
+
+        identifyingTargets.add(target.id);
+        broadcastState(); // Notify frontend of identifying state
+        
+        // Connect and identify
+        const ws = new WebSocket(target.webSocketDebuggerUrl);
+        
+        ws.onopen = () => {
+            const script = CdpScripts.getIdentityScript();
+            ws.send(JSON.stringify({
+                id: 1,
+                method: "Runtime.evaluate",
+                params: { 
+                    expression: script, 
+                    awaitPromise: true, 
+                    returnByValue: true 
+                }
+            }));
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.id === 1 && data.result && data.result.result) {
+                    const name = data.result.result.value;
+                    // Cache the result (even if empty) to prevent endless loop
+                    targetIdentityCache.set(target.id, name || "");
+                    broadcastState(); // Notify frontend
+                }
+            } catch (e) {
+                // Ignore
+            }
+            ws.close();
+            identifyingTargets.delete(target.id);
+            broadcastState(); // Notify frontend
+        };
+
+        ws.onerror = (e) => {
+            identifyingTargets.delete(target.id);
+            broadcastState(); // Notify frontend
+        };
+        
+        // Timeout safety
+        setTimeout(() => {
+            if (ws.readyState !== WebSocket.CLOSED) {
+                ws.close();
+                identifyingTargets.delete(target.id);
+                broadcastState(); // Notify frontend
+            }
+        }, 2500); // Increased slightly to allow script timeout to fire first
+    });
+}
+
+// Show Release Notes on Update
+chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === 'update') {
+        chrome.storage.local.set({ showChangelog: true });
+    }
+});

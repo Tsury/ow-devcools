@@ -16,7 +16,14 @@ let isConnected = false;
 let lastRenderedHTML = '';
 let uninstallConfirmations = {}; // Track uninstall confirmation state
 let targetMetadata = new Map(); // targetId -> { niceName, appName }
+let targetIdentities = new Map(); // targetId -> windowName (from background identification)
+let identifyingTargets = new Set(); // targetId (currently being identified)
+let firstSeenTimestamp = new Map(); // targetId -> timestamp (for debounce)
 let currentTheme = 'dark';
+let searchTerm = '';
+let showBuiltInPackages = false;
+let showDevOptionsInTray = false;
+let isDropdownOpen = false;
 
 // Cache version to avoid "Extension context invalidated" errors during polling
 const extensionVersion = chrome.runtime.getManifest().version;
@@ -218,6 +225,9 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 initTheme();
 
 function startDashboardLogic() {
+    // Check for updates/changelog
+    checkChangelog();
+
     // Initial Poll
     poll();
     
@@ -251,6 +261,16 @@ function poll() {
         if (response && typeof response === 'object' && 'data' in response) {
             currentAppState = response.data || [];
             isConnected = response.connected;
+            if (response.settings) {
+                showBuiltInPackages = response.settings.showBuiltInPackages;
+                showDevOptionsInTray = response.settings.showDevOptionsInTray;
+            }
+            if (response.identities) {
+                targetIdentities = new Map(response.identities);
+            }
+            if (response.identifying) {
+                identifyingTargets = new Set(response.identifying);
+            }
         } else {
             currentAppState = response || [];
         }
@@ -282,6 +302,19 @@ function poll() {
             .then(targets => {
                 // isConnected is determined by GET_STATE/APP_STATE (connection to Packages)
                 currentTargets = targets.filter(t => t.type === 'page' && !t.url.startsWith('devtools://'));
+                
+                // Update timestamps for debounce
+                const currentIds = new Set(currentTargets.map(t => t.id));
+                for (const t of currentTargets) {
+                    if (!firstSeenTimestamp.has(t.id)) {
+                        firstSeenTimestamp.set(t.id, Date.now());
+                    }
+                }
+                // Cleanup closed targets
+                for (const id of firstSeenTimestamp.keys()) {
+                    if (!currentIds.has(id)) firstSeenTimestamp.delete(id);
+                }
+
                 renderDashboard();
             })
             .catch(err => {
@@ -323,6 +356,12 @@ function renderDashboard() {
                     <h1>Overwolf DevCools by Tsury <span class="version">v${extensionVersion}</span> <span class="beta-badge">BETA</span></h1>
                 </div>
                 <div class="header-controls">
+                    <button id="whats-new-btn" class="header-btn" title="What's New">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+                    </button>
+                    <a href="https://chromewebstore.google.com/detail/overwolf-devcools/dlgoceidbpkdallbhdfanahejljmijdg" target="_blank" class="header-btn" title="Chrome Web Store">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle><line x1="21.17" y1="8" x2="12" y2="8"></line><line x1="3.95" y1="6.06" x2="8.54" y2="14"></line><line x1="10.88" y1="21.94" x2="15.46" y2="14"></line></svg>
+                    </a>
                     <button id="github-btn" class="github-btn" title="Open on GitHub">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
                     </button>
@@ -356,6 +395,41 @@ function renderDashboard() {
                 <button id="update-packages-btn" class="btn-action-large btn-icon-only" title="Update packages now">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
                 </button>
+            </div>
+
+            <div class="filter-actions-bar">
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="search-input" placeholder="Search apps & windows..." value="${searchTerm}">
+                        ${searchTerm ? '<button id="search-clear-btn" class="search-clear-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>' : ''}
+                    </div>
+                </div>
+                <div class="right-actions">
+                    <button class="btn-secondary icon-big task-manager" id="task-manager-btn" data-tooltip="Task manager" tooltip-position="top">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="8" width="16" height="2" fill="currentcolor"></rect><rect x="8" y="10" width="2" height="13" fill="currentcolor"></rect><rect x="8" y="24" width="2" height="16" transform="rotate(-90 8 24)" fill="currentcolor"></rect><rect x="22" y="10" width="2" height="14" fill="currentcolor"></rect><path d="M8 16H12.5L14.5 13.5L17.5 18.5L19.5 16H24" stroke="currentcolor" stroke-width="2"></path></svg>
+                    </button>
+                    <button class="btn-secondary icon-big settings" id="ow-settings-btn" data-tooltip="Open Settings" tooltip-position="top">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.1014 8L13.7007 10.0187C13.0324 10.267 12.4146 10.6139 11.872 11.0516L9.89863 10.3828L8 13.6172L9.57901 14.9656C9.52302 15.3032 9.48678 15.6469 9.48678 16C9.48678 16.3531 9.52302 16.6968 9.57901 17.0344L8 18.3828L9.89863 21.6172L11.872 20.9484C12.4146 21.3861 13.0324 21.733 13.7007 21.9812L14.1014 24H17.8986L18.2993 21.9812C18.9676 21.733 19.5854 21.3861 20.128 20.9484L22.1014 21.6172L24 18.3828L22.421 17.0344C22.477 16.6968 22.5132 16.3531 22.5132 16C22.5132 15.6469 22.477 15.3032 22.421 14.9656L24 13.6172L22.1014 10.3828L20.128 11.0516C19.5854 10.6139 18.9676 10.267 18.2993 10.0187L17.8986 8H14.1014ZM16 12.8C17.7985 12.8 19.2566 14.2328 19.2566 16C19.2566 17.7672 17.7985 19.2 16 19.2C14.2015 19.2 12.7434 17.7672 12.7434 16C12.7434 14.2328 14.2015 12.8 16 12.8Z" fill="currentcolor"></path></svg>
+                    </button>
+                    <div class="packages-dropdown">
+                        <button class="btn-secondary icon-big dropdown-btn" id="dropdown-btn" data-tooltip="Settings menu" tooltip-position="top">
+                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22V20H8V18H12V16H14V22H12ZM16 20V18H24V20H16ZM18 16V10H20V12H24V14H20V16H18ZM8 14V12H16V14H8Z" fill="currentcolor"></path></svg>
+                        </button>
+                        <nav class="dropdown-menu ${isDropdownOpen ? 'show' : ''}" id="dropdown-menu">
+                            <ul>
+                                <li class="option-item">
+                                    <input type="checkbox" name="built-in-packages" id="cb-built-in-packages" ${showBuiltInPackages ? 'checked' : ''}>
+                                    <label for="cb-built-in-packages">Show Overwolf built-in packages</label>
+                                </li>
+                                <li class="option-item">
+                                    <input type="checkbox" name="dev-items-in-tray-menu" id="cb-dev-items-in-tray-menu" ${showDevOptionsInTray ? 'checked' : ''}>
+                                    <label for="cb-dev-items-in-tray-menu">Show dev-items in tray menu</label>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
             </div>
 
             <div class="main-content">
@@ -398,7 +472,8 @@ function processTargetMetadata() {
         
         if (!manifest) {
             // Trigger fetch if not already fetching
-            if (!fetchingManifests.has(app.id)) {
+            // Only fetch if the app is enabled, otherwise it will fail (CORS/Network error).
+            if (!fetchingManifests.has(app.id) && app.isEnabled) {
                 fetchManifest(app.id, app.version);
             }
             return; // Cannot match without manifest
@@ -425,20 +500,64 @@ function processTargetMetadata() {
         // Handle standard manifest structure and the nested 'data' structure seen in logs
         const windows = manifestJson.windows || manifestJson.data?.windows || {};
         
-        Object.entries(windows).forEach(([winName, winDef]) => {
-            const file = winDef.file; 
-            if (!file) return;
+        // Prioritize windows that are actually reported as open by the Packages UI
+        let windowsToMatch = [];
+        if (app.appWindows && app.appWindows.length > 0) {
+            windowsToMatch = app.appWindows.map(name => ({
+                name: name,
+                def: windows[name],
+                matched: false
+            })).filter(w => w.def);
+        } else {
+            // Fallback to all manifest windows if no live data
+            windowsToMatch = Object.entries(windows).map(([name, def]) => ({
+                name: name,
+                def: def,
+                matched: false
+            }));
+        }
 
-            // Normalize file path for matching
-            // Manifest file paths are relative to extension root
-            // Target URLs are absolute: overwolf-extension://<ID>/<FILE>
-            
+        // Phase 0: Identity Match (Absolute Truth)
+        // Use the window name identified by the background script via CDP
+        for (const win of windowsToMatch) {
+            if (win.matched) continue;
+
             const matchIndex = availableTargets.findIndex(t => {
+                const identity = targetIdentities.get(t.id);
+                return identity === win.name;
+            });
+
+            if (matchIndex !== -1) {
+                const matchedTarget = availableTargets[matchIndex];
+                targetMetadata.set(matchedTarget.id, {
+                    niceName: win.name,
+                    appName: app.name,
+                    appId: app.id,
+                    appIcon: app.icon
+                });
+                availableTargets.splice(matchIndex, 1);
+                win.matched = true;
+            }
+        }
+
+        // Phase 2: File Path Match (Fallback)
+        // If titles don't match, we fall back to the file path defined in manifest
+        for (const win of windowsToMatch) {
+            if (win.matched) continue;
+            
+            const file = win.def.file; 
+            if (!file) continue;
+
+            const matchIndex = availableTargets.findIndex(t => {
+                // Skip if currently identifying (wait for Phase 0)
+                if (identifyingTargets.has(t.id)) return false;
+
+                // Debounce: Wait for background identification to start/finish
+                const knownTime = firstSeenTimestamp.get(t.id) || Date.now();
+                if (Date.now() - knownTime < 1500) return false;
+
                 try {
                     const urlObj = new URL(t.url);
-                    // Check if pathname ends with the file definition
-                    // We use endsWith to handle potential leading slashes or subfolders
-                    // e.g. manifest: "windows/index.html", url: "/windows/index.html"
                     const path = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
                     return path === file;
                 } catch (e) { return false; }
@@ -446,18 +565,16 @@ function processTargetMetadata() {
 
             if (matchIndex !== -1) {
                 const matchedTarget = availableTargets[matchIndex];
-                
                 targetMetadata.set(matchedTarget.id, {
-                    niceName: winName,
+                    niceName: win.name,
                     appName: app.name,
                     appId: app.id,
                     appIcon: app.icon
                 });
-
-                // Remove from available targets
                 availableTargets.splice(matchIndex, 1);
+                win.matched = true;
             }
-        });
+        }
     });
 }
 
@@ -571,9 +688,20 @@ function renderAppsList(apps) {
     if (!isConnected) return '<div class="empty-state">Waiting for Packages window...<br><span style="font-size:12px; opacity:0.7; display:block; margin-top:5px">Please open the Overwolf Packages window to continue.</span></div>';
     if (!apps || apps.length === 0) return '<div class="empty-state">No apps found. Ensure the Packages window is open.</div>';
     
-    const visibleApps = apps.filter(app => !hiddenAppRules.some(r => (typeof r === 'string' ? r : r.id) === app.id));
+    let visibleApps = apps.filter(app => !hiddenAppRules.some(r => (typeof r === 'string' ? r : r.id) === app.id));
+
+    if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        visibleApps = visibleApps.filter(app => 
+            app.name.toLowerCase().includes(term) || 
+            app.id.toLowerCase().includes(term)
+        );
+    }
 
     if (visibleApps.length === 0 && apps.length > 0) {
+        if (searchTerm) {
+            return `<div class="empty-state">No apps match "${searchTerm}"</div>`;
+        }
         return '<div class="empty-state">All apps are hidden. Check extension settings to restore them.</div>';
     }
 
@@ -597,6 +725,7 @@ function renderAppsList(apps) {
                 <div class="app-header">
                     <h3>${app.name}</h3>
                     ${app.path ? '<span class="badge badge-unpacked">UNPACKED</span>' : ''}
+                    ${app.isBuiltIn ? '<span class="badge badge-builtin">BUILT-IN</span>' : ''}
                 </div>
                 <div class="app-meta">
                     <span class="meta-item author"><i class="icon-user"></i> ${app.author}</span>
@@ -661,6 +790,7 @@ function renderAppsList(apps) {
                 <button class="btn action-btn ${isEnabled ? 'btn-disable-state' : 'btn-enable-state'}" 
                     data-appid="${app.id}" 
                     data-action="${isEnabled ? 'Disable' : 'Enable'}"
+                    ${toggleBtn.enabled ? '' : 'disabled'}
                     title="${isEnabled ? 'Disable App' : 'Enable App'}">
                     ${isEnabled ? 'Disable' : 'Enable'}
                 </button>` : ''}
@@ -735,9 +865,25 @@ function isRuleMatch(rule, title, url) {
 
 function renderTargetsList(targets) {
     if (!isConnected) return '<div class="empty-state">Waiting for Packages window...<br><span style="font-size:12px; opacity:0.7; display:block; margin-top:5px">Please open the Overwolf Packages window to continue.</span></div>';
+    
+    if ((!targets || targets.length === 0) && identifyingTargets.size > 0) {
+        return '<div class="identifying-state"><div class="loading-spinner"></div>Identifying windows...</div>';
+    }
+
     if (!targets || targets.length === 0) return '<div class="empty-state">No active windows found.</div>';
     
     const visibleTargets = targets.filter(t => {
+        // 0. Check search term
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            const meta = targetMetadata.get(t.id);
+            const matches = t.title.toLowerCase().includes(term) || 
+                            t.url.toLowerCase().includes(term) ||
+                            (meta && meta.niceName.toLowerCase().includes(term)) ||
+                            (meta && meta.appName.toLowerCase().includes(term));
+            if (!matches) return false;
+        }
+
         // 1. Check specific window hidden rules
         const isHiddenByRule = hiddenRules.some(rule => isRuleMatch(rule, t.title, t.url));
         if (isHiddenByRule) return false;
@@ -790,8 +936,18 @@ function renderTargetsList(targets) {
         return 0;
     });
 
-    if (visibleTargets.length === 0 && targets.length > 0) {
-        return '<div class="empty-state">All active windows are hidden. Check extension settings to restore them.</div>';
+    if (visibleTargets.length === 0) {
+        if (searchTerm) {
+            return `<div class="empty-state">No windows match "${searchTerm}"</div>`;
+        }
+
+        if (identifyingTargets.size > 0) {
+            return '<div class="identifying-state"><div class="loading-spinner"></div>Identifying windows...</div>';
+        }
+
+        if (targets.length > 0) {
+            return '<div class="empty-state">All active windows are hidden. Check extension settings to restore them.</div>';
+        }
     }
 
     return visibleTargets.map(t => {
@@ -807,10 +963,13 @@ function renderTargetsList(targets) {
         
         let headerContent;
         let urlDisplayHtml = t.url;
+        let cardIconHtml = '';
 
         if (meta) {
             const color = getColorForString(meta.niceName);
-            const iconHtml = meta.appIcon ? `<img src="${meta.appIcon}" style="width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; flex-shrink: 0;">` : '';
+            if (meta.appIcon) {
+                cardIconHtml = `<img src="${meta.appIcon}" style="width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0; object-fit: cover;">`;
+            }
             
             let filename = '';
             let paramsHtml = '';
@@ -835,7 +994,6 @@ function renderTargetsList(targets) {
             if (parsedSuccessfully) {
                 headerContent = `
                     <div style="display: flex; align-items: center; min-width: 0; overflow: hidden;">
-                        ${iconHtml}
                         <div style="display: flex; align-items: baseline; overflow: hidden;">
                             <span style="color: ${color}; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${meta.niceName}">${meta.niceName}</span>
                             <span style="color: #888; font-size: 11px; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">(${filename})</span>
@@ -846,7 +1004,6 @@ function renderTargetsList(targets) {
             } else {
                 headerContent = `
                     <div style="display: flex; align-items: center; min-width: 0; overflow: hidden;">
-                        ${iconHtml}
                         <span style="color: ${color}; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${meta.niceName}">${meta.niceName}</span>
                     </div>
                 `;
@@ -859,6 +1016,7 @@ function renderTargetsList(targets) {
 
         return `
         <div class="target-card">
+            ${cardIconHtml}
             <div class="target-info">
                 <h3 style="display: flex; align-items: center; justify-content: space-between;">${headerContent}</h3>
                 <p class="target-url" title="${t.url}">${urlDisplayHtml}</p>
@@ -933,6 +1091,88 @@ function attachListeners() {
             chrome.runtime.sendMessage({ type: "PACK_EXTENSION" });
         });
     }
+
+    // Search
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value;
+            renderDashboard();
+            // Restore focus
+            const input = document.getElementById('search-input');
+            if (input) {
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+        });
+    }
+
+    const searchClearBtn = document.getElementById('search-clear-btn');
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            searchTerm = '';
+            renderDashboard();
+        });
+    }
+
+    // New Action Buttons
+    const taskManagerBtn = document.getElementById('task-manager-btn');
+    if (taskManagerBtn) {
+        taskManagerBtn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: "OPEN_TASK_MANAGER" });
+        });
+    }
+
+    const owSettingsBtn = document.getElementById('ow-settings-btn');
+    if (owSettingsBtn) {
+        owSettingsBtn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: "OPEN_OW_SETTINGS" });
+        });
+    }
+
+    // Dropdown
+    const dropdownBtn = document.getElementById('dropdown-btn');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+    if (dropdownBtn && dropdownMenu) {
+        dropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isDropdownOpen = !isDropdownOpen;
+            if (isDropdownOpen) {
+                dropdownMenu.classList.add('show');
+            } else {
+                dropdownMenu.classList.remove('show');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                if (isDropdownOpen) {
+                    isDropdownOpen = false;
+                    dropdownMenu.classList.remove('show');
+                }
+            }
+        });
+    }
+
+    // Toggles
+    const builtInToggle = document.getElementById('cb-built-in-packages');
+    if (builtInToggle) {
+        builtInToggle.addEventListener('change', (e) => {
+            // Optimistic update
+            showBuiltInPackages = e.target.checked;
+            chrome.runtime.sendMessage({ type: "TOGGLE_BUILT_IN_PACKAGES" });
+        });
+    }
+
+    const devTrayToggle = document.getElementById('cb-dev-items-in-tray-menu');
+    if (devTrayToggle) {
+        devTrayToggle.addEventListener('change', (e) => {
+            // Optimistic update
+            showDevOptionsInTray = e.target.checked;
+            chrome.runtime.sendMessage({ type: "TOGGLE_TRAY_DEV_OPTIONS" });
+        });
+    }
+
     const updatePackagesBtn = document.getElementById('update-packages-btn');
     if (updatePackagesBtn) {
         updatePackagesBtn.addEventListener('click', () => {
@@ -945,6 +1185,14 @@ function attachListeners() {
     if (githubBtn) {
         githubBtn.addEventListener('click', () => {
             chrome.runtime.sendMessage({ type: "OPEN_URL", url: "https://github.com/Tsury/ow-devcools" });
+        });
+    }
+
+    // What's New Button
+    const whatsNewBtn = document.getElementById('whats-new-btn');
+    if (whatsNewBtn) {
+        whatsNewBtn.addEventListener('click', () => {
+            showChangelogModal();
         });
     }
 
@@ -1221,6 +1469,16 @@ chrome.runtime.onMessage.addListener((message) => {
     if (message.type === "APP_STATE") {
         currentAppState = message.data;
         isConnected = message.connected;
+        if (message.settings) {
+            showBuiltInPackages = message.settings.showBuiltInPackages;
+            showDevOptionsInTray = message.settings.showDevOptionsInTray;
+        }
+        if (message.identities) {
+            targetIdentities = new Map(message.identities);
+        }
+        if (message.identifying) {
+            identifyingTargets = new Set(message.identifying);
+        }
         renderDashboard();
     }
     if (message.type === "OPENED_TARGETS_UPDATE") {
@@ -1252,4 +1510,169 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         }
     }
 });
+
+// --- Changelog Logic ---
+
+function checkChangelog() {
+    chrome.storage.local.get('showChangelog', (result) => {
+        if (result.showChangelog) {
+            showChangelogModal();
+            chrome.storage.local.set({ showChangelog: false });
+        }
+    });
+}
+
+function showChangelogModal() {
+    const changelogUrl = chrome.runtime.getURL('CHANGELOG.md');
+    fetch(changelogUrl)
+        .then(response => response.text())
+        .then(text => {
+            const releases = parseChangelog(text);
+            renderChangelogModal(releases);
+        })
+        .catch(err => console.error('Failed to load changelog:', err));
+}
+
+function parseChangelog(markdown) {
+    const lines = markdown.split('\n');
+    const releases = [];
+    let currentRelease = null;
+
+    const versionRegex = /^## \[(.*?)\](?: - (.*))?/;
+    const itemRegex = /^\* (?:(\w+): )?(.*)/;
+
+    for (const line of lines) {
+        const versionMatch = line.match(versionRegex);
+        if (versionMatch) {
+            if (currentRelease) {
+                releases.push(currentRelease);
+            }
+            
+            const version = versionMatch[1];
+            currentRelease = {
+                version: version,
+                date: versionMatch[2] || 'Coming Soon',
+                changes: []
+            };
+            continue;
+        }
+
+        if (currentRelease) {
+            const itemMatch = line.match(itemRegex);
+            if (itemMatch) {
+                const type = itemMatch[1] || 'Other';
+                let text = itemMatch[2];
+                text = text.replace(/\s\([a-f0-9]{7}\)$/, '');
+                currentRelease.changes.push({ type, text });
+            }
+        }
+    }
+
+    if (currentRelease) {
+        releases.push(currentRelease);
+    }
+
+    return releases;
+}
+
+function renderChangelogModal(releases) {
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'changelog-modal';
+    
+    const modalContent = document.createElement('div');
+    modalContent.className = 'changelog-content';
+
+    const header = document.createElement('div');
+    header.className = 'changelog-header';
+    header.innerHTML = `
+        <h2>What's New</h2>
+        <span class="changelog-close">&times;</span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'changelog-body';
+
+    releases.forEach((release, index) => {
+        if (release.changes.length === 0) return;
+
+        const entry = document.createElement('div');
+        entry.className = 'release-entry';
+        
+        if (index > 0) {
+            entry.classList.add('collapsed');
+        }
+
+        let changesHtml = '';
+        release.changes.forEach(change => {
+            const typeClass = `type-${change.type.toLowerCase()}`;
+            const validTypes = ['feat', 'fix', 'style', 'docs', 'refactor', 'perf', 'test', 'chore'];
+            const finalTypeClass = validTypes.includes(change.type.toLowerCase()) ? typeClass : 'type-other';
+
+            
+            changesHtml += `
+                <div class="change-item">
+                    <span class="change-type ${finalTypeClass}">${change.type}</span>
+                    <span class="change-text">${text}</span>
+                </div>
+            `;
+        });
+
+        const isLatest = index === 0;
+        const latestBadge = isLatest ? '<span class="latest-tag">Latest</span>' : '';
+
+        entry.innerHTML = `
+            <div class="release-header">
+                <div class="release-header-left">
+                    <div class="release-version">
+                        v${release.version}
+                        ${latestBadge}
+                    </div>
+                    <div class="release-date">${release.date}</div>
+                </div>
+                <div class="release-expand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+            </div>
+            <div class="release-notes">
+                ${changesHtml}
+            </div>
+        `;
+        
+        const header = entry.querySelector('.release-header');
+        header.addEventListener('click', () => {
+            entry.classList.toggle('collapsed');
+        });
+
+        body.appendChild(entry);
+    });
+
+    const footer = document.createElement('div');
+    footer.className = 'changelog-footer';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'changelog-btn';
+    closeBtn.textContent = 'Awesome!';
+    footer.appendChild(closeBtn);
+
+    modalContent.appendChild(header);
+    modalContent.appendChild(body);
+    modalContent.appendChild(footer);
+    modalOverlay.appendChild(modalContent);
+    document.body.appendChild(modalOverlay);
+
+    void modalOverlay.offsetWidth; 
+    modalOverlay.classList.add('show');
+
+    const closeModal = () => {
+        modalOverlay.classList.remove('show');
+        setTimeout(() => {
+            modalOverlay.remove();
+        }, 200);
+    };
+
+    header.querySelector('.changelog-close').onclick = closeModal;
+    closeBtn.onclick = closeModal;
+    modalOverlay.onclick = (e) => {
+        if (e.target === modalOverlay) closeModal();
+    };
+}
 
