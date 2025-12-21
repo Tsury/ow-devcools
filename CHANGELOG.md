@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [1.0.23] - 2025-12-21
 * Ci: Fix changelog generation logic to correctly move unreleased items to the new version
 * Feat: Toolbar button now focuses existing dashboard or opens a new one if not on the dashboard page
 * Feat: Added Search Bar to filter apps and windows by name or URL
