@@ -1,5 +1,8 @@
 # Changelog
 
+## [Unreleased]
+* Test: Verifying changelog workflow with manual entry
+
 ## [1.0.24] - 2025-12-21
 * ci: remove persistent unreleased section from changelog generation [no-changelog] (df184d4)
 
