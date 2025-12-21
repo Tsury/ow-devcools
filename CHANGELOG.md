@@ -1,6 +1,7 @@
 # Changelog
 
 ## [Unreleased]
+* Ci: Fix changelog generation logic to correctly move unreleased items to the new version
 * Feat: Toolbar button now focuses existing dashboard or opens a new one if not on the dashboard page
 * Feat: Added Search Bar to filter apps and windows by name or URL
 * Feat: Added Settings Dropdown to toggle "Built-in Packages" and "Tray Options" visibility

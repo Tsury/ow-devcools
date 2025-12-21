@@ -54,7 +54,7 @@ jobs:
           
           echo "Last tag: $last_tag"
           
-          # Generate changelog content
+          # Generate changelog content (fallback)
           if [ -z "$last_tag" ]; then
             echo "No previous tag found. Generating log from start."
             git log --pretty=format:"* %s (%h)" > changes.tmp
@@ -62,9 +62,6 @@ jobs:
             echo "Generating log since $last_tag"
             git log ${last_tag}..HEAD --pretty=format:"* %s (%h)" > changes.tmp
           fi
-          
-          # Create a release notes file for the GitHub Release body
-          cat changes.tmp > release_notes.md
           
           # Use Python to update CHANGELOG.md intelligently
           python3 -c "
@@ -75,36 +72,52 @@ jobs:
           version = '$version'
           date = '$date'
           
-          with open('changes.tmp', 'r') as f:
-              changes = f.read().strip()
-              
-          new_entry = f'## [{version}] - {date}\n{changes}\n\n'
-          
-          if os.path.exists('CHANGELOG.md'):
-              with open('CHANGELOG.md', 'r') as f:
-                  content = f.read()
-          else:
-              content = '# Changelog\n\n'
+          with open('CHANGELOG.md', 'r') as f:
+              content = f.read()
 
           # Regex to find [Unreleased] section
-          # Matches ## [Unreleased] followed by anything until the next ## [ or EOF
-          unreleased_pattern = r'(## \[Unreleased\].*?)(?=\n## \[|$)'
+          # Group 1: The header
+          # Group 2: The content until the next header or EOF
+          pattern = r'(## \[Unreleased\])(.*?)(?=\n## \[|$)'
           
-          match = re.search(unreleased_pattern, content, re.DOTALL)
+          match = re.search(pattern, content, re.DOTALL)
           
           if match:
-              # Insert after the [Unreleased] section
-              end_of_unreleased = match.end()
-              new_content = content[:end_of_unreleased] + '\n' + new_entry + content[end_of_unreleased:]
-          else:
-              # Insert after # Changelog header
-              header_pattern = r'(# Changelog\s*)'
-              header_match = re.match(header_pattern, content)
-              if header_match:
-                  end_of_header = header_match.end()
-                  new_content = content[:end_of_header] + '\n' + new_entry + content[end_of_header:]
+              unreleased_content = match.group(2).strip()
+              
+              # If manual changelog is empty, use git log
+              if not unreleased_content:
+                  with open('changes.tmp', 'r') as f:
+                      final_notes = f.read().strip()
               else:
-                  # Fallback
+                  final_notes = unreleased_content
+
+              # Write to release_notes.md for GitHub Release
+              with open('release_notes.md', 'w') as f:
+                  f.write(final_notes)
+
+              # Construct new block:
+              # 1. Empty [Unreleased]
+              # 2. New Version Header
+              # 3. The notes
+              new_block = f'## [Unreleased]\n\n## [{version}] - {date}\n{final_notes}\n'
+              
+              # Replace the old [Unreleased] block with the new structure
+              # We replace match.group(0) which is Header + Content
+              new_content = content.replace(match.group(0), new_block, 1)
+          else:
+              # Fallback: Create headers if missing
+              with open('changes.tmp', 'r') as f:
+                  final_notes = f.read().strip()
+              
+              with open('release_notes.md', 'w') as f:
+                  f.write(final_notes)
+                  
+              new_entry = f'## [Unreleased]\n\n## [{version}] - {date}\n{final_notes}\n\n'
+              
+              if '# Changelog' in content:
+                  new_content = content.replace('# Changelog', '# Changelog\n\n' + new_entry)
+              else:
                   new_content = '# Changelog\n\n' + new_entry + content
 
           with open('CHANGELOG.md', 'w') as f:
