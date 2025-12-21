@@ -13,6 +13,10 @@
 * Docs: Added link to Chrome Web Store listing
 * Style: Polished UI with better spacing, larger icons, and a cleaner layout
 
+## [1.0.22] - 2025-12-21
+* feat: update toolbar button behavior to focus existing dashboard (45365a1)
+
+
 ## [1.0.21] - 2025-12-17
 * docs: fix broken chrome web store badge in readme [no-changelog] (5b37475)
 
