@@ -1,6 +1,7 @@
 # Changelog
 
-## [Unreleased]
+## [1.0.24] - 2025-12-21
+* ci: remove persistent unreleased section from changelog generation [no-changelog] (df184d4)
 
 ## [1.0.23] - 2025-12-21
 * Ci: Fix changelog generation logic to correctly move unreleased items to the new version
