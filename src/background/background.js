@@ -904,3 +904,43 @@ chrome.runtime.onInstalled.addListener((details) => {
         chrome.storage.local.set({ showChangelog: true });
     }
 });
+
+// --- Action Button Logic ---
+
+const DASHBOARD_URL_PREFIX = 'http://localhost:54284';
+
+chrome.action.onClicked.addListener((tab) => {
+    const dashboardUrl = 'http://localhost:54284/';
+    
+    chrome.tabs.query({ url: dashboardUrl + '*' }, (tabs) => {
+        const dashboardTab = tabs.find(t => !t.url.includes('/devtools/'));
+        
+        if (dashboardTab) {
+            chrome.tabs.update(dashboardTab.id, { active: true });
+            chrome.windows.update(dashboardTab.windowId, { focused: true });
+        } else {
+            chrome.tabs.create({ url: dashboardUrl });
+        }
+    });
+});
+
+function updateActionPopup(tabId, url) {
+    if (url && url.startsWith(DASHBOARD_URL_PREFIX) && !url.includes('/devtools/')) {
+        chrome.action.setPopup({ tabId: tabId, popup: 'src/popup/popup.html' });
+    } else {
+        chrome.action.setPopup({ tabId: tabId, popup: '' });
+    }
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (tab.url) {
+        updateActionPopup(tabId, tab.url);
+    }
+});
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.tabs.get(activeInfo.tabId, (tab) => {
+        if (chrome.runtime.lastError) return;
+        updateActionPopup(activeInfo.tabId, tab.url);
+    });
+});

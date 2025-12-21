@@ -1,6 +1,7 @@
 # Changelog
 
 ## [Unreleased]
+* Feat: Toolbar button now focuses existing dashboard or opens a new one if not on the dashboard page
 * Feat: Added Search Bar to filter apps and windows by name or URL
 * Feat: Added Settings Dropdown to toggle "Built-in Packages" and "Tray Options" visibility
 * Feat: Added "Task Manager" and "Overwolf Settings" shortcuts to the dashboard

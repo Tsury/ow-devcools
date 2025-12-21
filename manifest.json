@@ -31,7 +31,6 @@
   ],
   "action": {
     "default_title": "Overwolf DevCools",
-    "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "assets/icons/icon16.png",
       "32": "assets/icons/icon32.png",
