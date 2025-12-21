@@ -97,10 +97,8 @@ jobs:
                   f.write(final_notes)
 
               # Construct new block:
-              # 1. Empty [Unreleased]
-              # 2. New Version Header
-              # 3. The notes
-              new_block = f'## [Unreleased]\n\n## [{version}] - {date}\n{final_notes}\n'
+              # Just the new version header and notes. No [Unreleased] header.
+              new_block = f'## [{version}] - {date}\n{final_notes}\n'
               
               # Replace the old [Unreleased] block with the new structure
               # We replace match.group(0) which is Header + Content
@@ -113,7 +111,8 @@ jobs:
               with open('release_notes.md', 'w') as f:
                   f.write(final_notes)
                   
-              new_entry = f'## [Unreleased]\n\n## [{version}] - {date}\n{final_notes}\n\n'
+              # Just the new version header and notes.
+              new_entry = f'## [{version}] - {date}\n{final_notes}\n\n'
               
               if '# Changelog' in content:
                   new_content = content.replace('# Changelog', '# Changelog\n\n' + new_entry)
