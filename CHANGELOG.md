@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.26] - 2026-01-13
+* Fix: Adopted new Chrome DevTools URL and DOM structure changes.
+* Fix: Improved injection logic to support Shadow DOM traversal for toolbar buttons.
+
 ## [1.0.25] - 2025-12-21
 * Test: Verifying changelog workflow with manual entry
 

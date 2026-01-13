@@ -33,7 +33,7 @@ let fetchingManifests = new Set(); // appId
 let pollInterval = null;
 
 // Check if we are on the Dashboard or a DevTools window
-const isDevTools = window.location.pathname.includes('/devtools/');
+const isDevTools = window.location.pathname.includes('/devtools/') || window.location.pathname.includes('/inspector.html');
 
 if (isDevTools) {
     // --- DevTools Enhancer Logic ---
@@ -101,71 +101,109 @@ function initDevToolsEnhancer() {
 }
 
 function injectDevToolsControls(appId) {
-    const container = document.createElement('div');
-    container.id = 'ow-devcools-controls';
-    // Positioned in the top-right area of the DevTools window
-    // Using high z-index to ensure it sits on top of DevTools UI
-    container.style.cssText = `
-        position: fixed;
-        top: 2px;
-        right: 180px; /* Offset to avoid standard window controls or DevTools buttons */
-        z-index: 10000;
-        display: flex;
-        gap: 8px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    `;
-
-    const relaunchBtn = document.createElement('button');
-    relaunchBtn.title = "Relaunch App (Overwolf DevCools)";
-    relaunchBtn.style.cssText = `
-        background: #292a2d;
-        border: 1px solid #5f6368;
-        color: #9aa0a6;
-        border-radius: 4px;
-        padding: 0 10px;
-        cursor: pointer;
-        font-size: 11px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.2s;
-        outline: none;
-        height: 22px;
-    `;
-    
-    // Hover effects
-    relaunchBtn.onmouseenter = () => {
-        relaunchBtn.style.background = '#35363a';
-        relaunchBtn.style.color = '#e8eaed';
-        relaunchBtn.style.borderColor = '#80868b';
-    };
-    relaunchBtn.onmouseleave = () => {
-        relaunchBtn.style.background = '#292a2d';
-        relaunchBtn.style.color = '#9aa0a6';
-        relaunchBtn.style.borderColor = '#5f6368';
+    const findShadowDomElement = (selector) => {
+        function search(root) {
+            const found = root.querySelector(selector);
+            if (found) return found;
+            
+            const elements = root.querySelectorAll('*');
+            for (const el of elements) {
+                if (el.shadowRoot) {
+                    const res = search(el.shadowRoot);
+                    if (res) return res;
+                }
+            }
+            return null;
+        }
+        return search(document.body);
     };
 
-    relaunchBtn.innerHTML = `
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-        <span>Relaunch</span>
-    `;
+    const findToolbar = () => {
+        const mainPane = findShadowDomElement('.main-tabbed-pane');
+        if (mainPane && mainPane.shadowRoot) {
+            const toolbar = mainPane.shadowRoot.querySelector('.tabbed-pane-right-toolbar');
+            if (toolbar) {
+                inject(toolbar);
+                return;
+            }
+        }
+        setTimeout(findToolbar, 500);
+    };
 
-    relaunchBtn.onclick = () => {
-        // Animation
-        const icon = relaunchBtn.querySelector('svg');
-        icon.style.transition = 'transform 0.5s ease';
-        icon.style.transform = 'rotate(-180deg)';
+    const inject = (toolbar) => {
+        if (document.getElementById('ow-devcools-controls')) return;
+
+        const container = document.createElement('div');
+        container.id = 'ow-devcools-controls';
+        // Positioned inside the toolbar
+        container.style.cssText = `
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-right: 5px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            z-index: 100;
+        `;
+
+        const relaunchBtn = document.createElement('button');
+        relaunchBtn.title = "Relaunch App (Overwolf DevCools)";
+        relaunchBtn.style.cssText = `
+            background: #292a2d;
+            border: 1px solid #5f6368;
+            color: #9aa0a6;
+            border-radius: 4px;
+            padding: 0 10px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            outline: none;
+            height: 22px;
+        `;
         
-        chrome.runtime.sendMessage({ type: "RELAUNCH_APP", appId });
-        
-        setTimeout(() => {
-            icon.style.transform = 'none';
-        }, 500);
+        // Hover effects
+        relaunchBtn.onmouseenter = () => {
+            relaunchBtn.style.background = '#35363a';
+            relaunchBtn.style.color = '#e8eaed';
+            relaunchBtn.style.borderColor = '#80868b';
+        };
+        relaunchBtn.onmouseleave = () => {
+            relaunchBtn.style.background = '#292a2d';
+            relaunchBtn.style.color = '#9aa0a6';
+            relaunchBtn.style.borderColor = '#5f6368';
+        };
+
+        relaunchBtn.innerHTML = `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <span>Relaunch</span>
+        `;
+
+        relaunchBtn.onclick = () => {
+            // Animation
+            const icon = relaunchBtn.querySelector('svg');
+            icon.style.transition = 'transform 0.5s ease';
+            icon.style.transform = 'rotate(-180deg)';
+            
+            chrome.runtime.sendMessage({ type: "RELAUNCH_APP", appId });
+            
+            setTimeout(() => {
+                icon.style.transform = 'none';
+            }, 500);
+        };
+
+        container.appendChild(relaunchBtn);
+        // Insert as first child of the toolbar
+        if (toolbar.firstChild) {
+            toolbar.insertBefore(container, toolbar.firstChild);
+        } else {
+            toolbar.appendChild(container);
+        }
     };
 
-    container.appendChild(relaunchBtn);
-    document.body.appendChild(container);
+    findToolbar();
 }
 
 function initDashboard() {
