@@ -46,8 +46,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/icons/*.png",
-        "CHANGELOG.md"
+        "assets/icons/*.png"
       ],
       "matches": [
         "http://localhost:54284/*",
