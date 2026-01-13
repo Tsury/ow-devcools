@@ -1,10 +1,5 @@
 # Changelog
 
-## [1.0.28] - 2026-01-13
-* Trigger store release [publish] [no-changelog] (f2b2637)
-
-
-
 ## [1.0.27] - 2026-01-13
 * Fix: Support new Chrome DevTools URL and DOM structure (v1.0.26) (9825136)
 

@@ -10,7 +10,6 @@
   ],
   "host_permissions": [
     "http://localhost:54284/*",
-    "ws://localhost:54284/*",
     "https://chrome-devtools-frontend.appspot.com/*"
   ],
   "background": {
@@ -51,7 +50,8 @@
         "CHANGELOG.md"
       ],
       "matches": [
-        "http://localhost:54284/*"
+        "http://localhost:54284/*",
+        "https://chrome-devtools-frontend.appspot.com/*"
       ]
     }
   ]
