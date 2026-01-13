@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.30] - 2026-01-13
+* Fix: Remove CHANGELOG.md from wbr to fix upload 400 error [publish] [no-changelog] (0d0081e)
+
+
+
 ## [1.0.29] - 2026-01-13
 * Fix: Remove ws protocol from host_permissions and update web_accessible_resources [publish] (ce13c75)
 
