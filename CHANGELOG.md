@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.29] - 2026-01-13
+* Fix: Remove ws protocol from host_permissions and update web_accessible_resources [publish] (ce13c75)
+
+
+
 ## [1.0.27] - 2026-01-13
 * Fix: Support new Chrome DevTools URL and DOM structure (v1.0.26) (9825136)
 
